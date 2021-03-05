@@ -46,7 +46,11 @@ class FileOperations:
         if not os.path.exists(folder): 
             try: os.makedirs(folder)
             except FileExistsError:#in case there's a race condition where some other process creates the directory before makedirs is called
-                pass       
+                pass      
+            
+    """ Is this a valid directory """
+    def isThisValidDirectory(self, folderpath):
+        return os.path.exists(folderpath)
             
     """ Adds a slash at the end of the folder name if it isn't already present """
     def __folderSlash__(self, folderName):
@@ -108,7 +112,7 @@ class FolderChoiceMenu:
         
     def processUserChoice(self):
         retVal = None
-        if self.event == sg.WIN_CLOSED or self.event == 'Exit' or self.event == sg.Cancel:
+        if self.event == sg.WIN_CLOSED or self.event == 'Exit' or self.event == sg.Cancel or self.values[0] == '':
             retVal = FileSearchModes.choice_None
         else:
             retVal = self.values[0]
@@ -135,6 +139,12 @@ if __name__ == '__main__':
     if userChoice == FileSearchModes.choice_fileBinary:
         whichFolder = FolderChoiceMenu()
         whichFolder.showUserTheMenu()
+        folderChosen = whichFolder.processUserChoice()
+        fileOps = FileOperations()
+        if fileOps.isThisValidDirectory(folderChosen):
+            print('valid folder')
+        else:
+            print('invalid folder')
     if userChoice == FileSearchModes.choice_imagePixels:
         pass
         
