@@ -7,6 +7,7 @@ Created on 19-Feb-2021
 # if running in py3, change the shebang, drop the next import for readability (it does no harm in py3)
 from __future__ import print_function   # py2 compatibility
 from collections import defaultdict
+import PySimpleGUI as sg
 import hashlib
 import os
 import sys
@@ -18,6 +19,7 @@ class FileOperations:
         #self.SUBDIRECTORIES = 1
         self.FILES_IN_FOLDER = 2
     
+    """ Get names of files in each folder and subfolder. Also get sizes of files """
     def getNames(self, folderToConsider): #returns as [fullFolderPath1, fullFolderPath2, ...], [[filename1, filename2, filename3, ...], [], []]
         #TODO: check if folder exists
         #TODO: what about symlinks?
@@ -38,6 +40,79 @@ class FileOperations:
             filesInFolder.append(filesInThisFolder)
             
         return folderPaths, filesInFolder, fileSizes
+    
+    """ Check for folder's existence in current working directory. Create if it does not exist """
+    def createDirectoryIfNotExisting(self, folder):
+        if not os.path.exists(folder): 
+            try: os.makedirs(folder)
+            except FileExistsError:#in case there's a race condition where some other process creates the directory before makedirs is called
+                pass       
+            
+    """ Adds a slash at the end of the folder name if it isn't already present """
+    def __folderSlash__(self, folderName):
+        if folderName.endswith('/') == False: 
+            folderName = folderName + '/' 
+        return folderName    
+
+class FileSearchModes:
+    choice_fileBinary = 'Duplicate files (byte search)'
+    choice_imagePixels = 'Duplicate images (pixel search)'    
+    
+class MainMenu:
+    def __init__(self):
+        self.event = None
+        self.values = None
+        self.horizontalSepLen = 35       
+    
+    def showUserTheMenu(self):
+        #---choose mode of running        
+        layout = [
+                    [sg.Text('What kind of search do you want to do?')],
+                    [sg.Combo([FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels], default_value=FileSearchModes.choice_fileBinary)],        
+                    [sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')],
+                    [sg.OK(), sg.Cancel()]
+                  ]
+        window = sg.Window('', layout, element_justification='right', grab_anywhere=True)    
+        self.event, self.values = window.read()        
+        window.close()
+        
+    def processUserChoice(self):
+        if self.event == sg.WIN_CLOSED or self.event == 'Exit' or self.event == sg.Cancel:
+            exit()
+        else:
+            pass
+    
+        return self.values[0] #returns one of the FileSearchModes
+                
+class FileSearch:
+    def __init__(self):
+        pass
+
+#-----------------------------------------------
+#-----------------------------------------------
+#             PROGRAM STARTS HERE
+#-----------------------------------------------
+#-----------------------------------------------
+if __name__ == '__main__':
+    sg.theme('Dark grey 13')  # please make your creations colorful
+    searchMethod = MainMenu()
+    searchMethod.showUserTheMenu()
+    userChoice = searchMethod.processUserChoice()
+    print('User choice: ', userChoice)
+
+    
+    #---get folder name
+#     layout = [  [sg.Text('Filename')],
+#                 [sg.Input(), sg.FileBrowse()], 
+#                 [sg.OK(), sg.Cancel()]] 
+#     
+#     window = sg.Window('Get filename example', layout)
+#     
+#     event, values = window.read()
+#     window.close()
+
+
+
 
 
 # def chunk_reader(fobj, chunk_size=1024):
