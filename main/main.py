@@ -28,7 +28,7 @@ class FileOperations:
         folderPaths = []; filesInFolder = []; fileSizes = []
         result = os.walk(folderToConsider)        
         for oneFolder in result:
-            folderPath = oneFolder[self.FULL_FOLDER_PATH]
+            folderPath = self.folderSlash(oneFolder[self.FULL_FOLDER_PATH])
             folderPaths.append(folderPath)
             #subdir = oneFolder[self.SUBDIRECTORIES]
             filesInThisFolder = oneFolder[self.FILES_IN_FOLDER]
@@ -53,7 +53,7 @@ class FileOperations:
         return os.path.exists(folderpath)
             
     """ Adds a slash at the end of the folder name if it isn't already present """
-    def __folderSlash__(self, folderName):
+    def folderSlash(self, folderName):
         if folderName.endswith('/') == False: 
             folderName = folderName + '/' 
         return folderName    
@@ -63,7 +63,7 @@ class FileSearchModes:
     choice_fileBinary = 'Duplicate files (byte search)'
     choice_imagePixels = 'Duplicate images (pixel search)'    
     
-class MainMenu:
+class FirstChoiceMenu:
     def __init__(self):
         self.event = None
         self.values = None
@@ -81,15 +81,15 @@ class MainMenu:
         self.event, self.values = window.read()        
         window.close()
         
-    def processUserChoice(self):
+    def getUserChoice(self):
         retVal = None
         if self.event == sg.WIN_CLOSED or self.event == 'Exit' or self.event == sg.Cancel:
-            retVal = FileSearchModes.choice_None
+            exit()
+            #retVal = FileSearchModes.choice_None
         else:
-            retVal = self.values[0]
-    
+            retVal = self.values[0]    
         return retVal #returns one of the FileSearchModes
-    
+
 class FolderChoiceMenu:
     def __init__(self):
         self.event = None
@@ -97,7 +97,7 @@ class FolderChoiceMenu:
         self.horizontalSepLen = 35       
     
     def showUserTheMenu(self):
-        #---choose mode of running        
+        #---choose mode of running
         layout = [
                     [sg.Text('Which folder do you want to search in? ', justification='left')],
                     [sg.Input(), sg.FolderBrowse()],        
@@ -109,45 +109,50 @@ class FolderChoiceMenu:
         window = sg.Window('', layout, element_justification='right', grab_anywhere=False)    
         self.event, self.values = window.read()        
         window.close()
-        
-    def processUserChoice(self):
+    
+    def getUserChoice(self):
         retVal = None
         if self.event == sg.WIN_CLOSED or self.event == 'Exit' or self.event == sg.Cancel or self.values[0] == '':
             retVal = FileSearchModes.choice_None
         else:
             fileOps = FileOperations()
+            folderChosen = self.values[0]
             if fileOps.isThisValidDirectory(folderChosen):
-                retVal = self.values[0]
+                retVal = fileOps.folderSlash(folderChosen)
             else:
                 retVal = FileSearchModes.choice_None
         if retVal == FileSearchModes.choice_None:
             sg.popup('Please select a valid folder next time. Exiting now.')
-            exit()
-    
-        return retVal #returns one of the FileSearchModes    
+            exit()    
+        return retVal   
 
 class FileSearchBinaryMode:
-    def __init__(self):
-        pass
+    def __init__(self, foldername):
+        self.fileOps = FileOperations()
+        folderPaths, filesInFolder, fileSizes = self.fileOps.getNames(foldername)
+        print(filesInFolder)
+        print(fileSizes)
 
 #-----------------------------------------------
 #-----------------------------------------------
-#             PROGRAM STARTS HERE
+#------------ PROGRAM STARTS HERE --------------
 #-----------------------------------------------
 #-----------------------------------------------
 if __name__ == '__main__':
     sg.theme('Dark grey 13')  # please make your creations colorful
-    searchMethod = MainMenu()
+    #---choosing to do a file or image search
+    searchMethod = FirstChoiceMenu()
     searchMethod.showUserTheMenu()
-    userChoice = searchMethod.processUserChoice()
-    print('User choice: ', userChoice)
-    if userChoice == FileSearchModes.choice_None:
-        exit()
+    userChoice = searchMethod.getUserChoice()
+    
+    #---proceed with file search menu
     if userChoice == FileSearchModes.choice_fileBinary:
         whichFolder = FolderChoiceMenu()
         whichFolder.showUserTheMenu()
-        folderChosen = whichFolder.processUserChoice()
-
+        folderChosen = whichFolder.getUserChoice()
+        fileSearcher = FileSearchBinaryMode(folderChosen)
+    
+    #---proceed with image search menu
     if userChoice == FileSearchModes.choice_imagePixels:
         pass
         
