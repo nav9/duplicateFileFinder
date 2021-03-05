@@ -55,6 +55,7 @@ class FileOperations:
         return folderName    
 
 class FileSearchModes:
+    choice_None = 'Exit'
     choice_fileBinary = 'Duplicate files (byte search)'
     choice_imagePixels = 'Duplicate images (pixel search)'    
     
@@ -77,14 +78,44 @@ class MainMenu:
         window.close()
         
     def processUserChoice(self):
+        retVal = None
         if self.event == sg.WIN_CLOSED or self.event == 'Exit' or self.event == sg.Cancel:
-            exit()
+            retVal = FileSearchModes.choice_None
         else:
-            pass
+            retVal = self.values[0]
     
-        return self.values[0] #returns one of the FileSearchModes
-                
-class FileSearch:
+        return retVal #returns one of the FileSearchModes
+    
+class FolderChoiceMenu:
+    def __init__(self):
+        self.event = None
+        self.values = None
+        self.horizontalSepLen = 35       
+    
+    def showUserTheMenu(self):
+        #---choose mode of running        
+        layout = [
+                    [sg.Text('Which folder do you want to search in? ', justification='left')],
+                    [sg.Input(), sg.FolderBrowse()],        
+                    [sg.Text('Duplicate files are assumed to be inside the folder you choose. This', text_color='grey', justification='left')],
+                    [sg.Text('program will move all duplicates into a separate, newly created folder', text_color='grey', justification='left')],                    
+                    [sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')],
+                    [sg.OK(), sg.Cancel()]
+                  ]
+        window = sg.Window('', layout, element_justification='right', grab_anywhere=False)    
+        self.event, self.values = window.read()        
+        window.close()
+        
+    def processUserChoice(self):
+        retVal = None
+        if self.event == sg.WIN_CLOSED or self.event == 'Exit' or self.event == sg.Cancel:
+            retVal = FileSearchModes.choice_None
+        else:
+            retVal = self.values[0]
+    
+        return retVal #returns one of the FileSearchModes    
+
+class FileSearchBinaryMode:
     def __init__(self):
         pass
 
@@ -99,6 +130,14 @@ if __name__ == '__main__':
     searchMethod.showUserTheMenu()
     userChoice = searchMethod.processUserChoice()
     print('User choice: ', userChoice)
+    if userChoice == FileSearchModes.choice_None:
+        exit()
+    if userChoice == FileSearchModes.choice_fileBinary:
+        whichFolder = FolderChoiceMenu()
+        whichFolder.showUserTheMenu()
+    if userChoice == FileSearchModes.choice_imagePixels:
+        pass
+        
 
     
     #---get folder name
