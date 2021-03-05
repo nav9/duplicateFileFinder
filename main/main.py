@@ -115,7 +115,14 @@ class FolderChoiceMenu:
         if self.event == sg.WIN_CLOSED or self.event == 'Exit' or self.event == sg.Cancel or self.values[0] == '':
             retVal = FileSearchModes.choice_None
         else:
-            retVal = self.values[0]
+            fileOps = FileOperations()
+            if fileOps.isThisValidDirectory(folderChosen):
+                retVal = self.values[0]
+            else:
+                retVal = FileSearchModes.choice_None
+        if retVal == FileSearchModes.choice_None:
+            sg.popup('Please select a valid folder next time. Exiting now.')
+            exit()
     
         return retVal #returns one of the FileSearchModes    
 
@@ -140,11 +147,7 @@ if __name__ == '__main__':
         whichFolder = FolderChoiceMenu()
         whichFolder.showUserTheMenu()
         folderChosen = whichFolder.processUserChoice()
-        fileOps = FileOperations()
-        if fileOps.isThisValidDirectory(folderChosen):
-            print('valid folder')
-        else:
-            print('invalid folder')
+
     if userChoice == FileSearchModes.choice_imagePixels:
         pass
         
