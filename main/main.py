@@ -75,8 +75,8 @@ class FirstChoiceMenu:
                     [sg.Text('What kind of search do you want to do?')],
                     [sg.Combo([FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels], default_value=FileSearchModes.choice_fileBinary)],        
                     [sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')],
-                    [sg.OK(), sg.Cancel()]
-                  ]
+                    [sg.Cancel(), sg.OK()]
+                 ]
         window = sg.Window('', layout, element_justification='right', grab_anywhere=True)    
         self.event, self.values = window.read()        
         window.close()
@@ -104,7 +104,7 @@ class FolderChoiceMenu:
                     [sg.Text('Duplicate files are assumed to be inside the folder you choose. This', text_color='grey', justification='left')],
                     [sg.Text('program will move all duplicates into a separate, newly created folder', text_color='grey', justification='left')],                    
                     [sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')],
-                    [sg.OK(), sg.Cancel()]
+                    [sg.Cancel(), sg.OK()]
                   ]
         window = sg.Window('', layout, element_justification='right', grab_anywhere=False)    
         self.event, self.values = window.read()        
@@ -130,8 +130,11 @@ class FileSearchBinaryMode:
     def __init__(self, foldername):
         self.fileOps = FileOperations()
         folderPaths, filesInFolder, fileSizes = self.fileOps.getNames(foldername)
-        print(filesInFolder)
-        print(fileSizes)
+        #---initiate search for duplicates
+        for folderOrdinal in range(len(folderPaths)):
+            filenames = filesInFolder[folderOrdinal]
+            for fileOrdinal in range(len(filenames)):
+                pass
 
 #-----------------------------------------------
 #-----------------------------------------------
