@@ -9,9 +9,12 @@ from __future__ import print_function   # py2 compatibility
 from collections import defaultdict
 import PySimpleGUI as sg
 import hashlib
+import filecmp
 import os
 import sys
 
+class GlobalConstants:
+    duplicatesFolder = "duplicatesFolder/"
 
 class FileOperations:
     def __init__(self):
@@ -20,11 +23,12 @@ class FileOperations:
         self.FILES_IN_FOLDER = 2
     
     """ Get names of files in each folder and subfolder. Also get sizes of files """
-    def getNames(self, folderToConsider): #returns as [fullFolderPath1, fullFolderPath2, ...], [[filename1, filename2, filename3, ...], [], []]
+    def getNames(self, folderToConsider): 
         #TODO: check if folder exists
         #TODO: what about symlinks?
         #TODO: read-only files, files without permission to read, files that can't be moved, corrupted files
         #TODO: What about "file-like objects"
+        #TODO: Encrypted containers?
         folderPaths = []; filesInFolder = []; fileSizes = []
         result = os.walk(folderToConsider)        
         for oneFolder in result:
@@ -37,9 +41,8 @@ class FileOperations:
                 fileProperties = os.stat(folderPath + filename)
                 sizeOfFiles.append(fileProperties.st_size)
             fileSizes.append(sizeOfFiles)
-            filesInFolder.append(filesInThisFolder)
-            
-        return folderPaths, filesInFolder, fileSizes
+            filesInFolder.append(filesInThisFolder)            
+        return folderPaths, filesInFolder, fileSizes #returns as [fullFolderPath1, fullFolderPath2, ...], [[filename1, filename2, filename3, ...], [], []], [[filesize1, filesize2, filesize3, ...], [], []]  
     
     """ Check for folder's existence in current working directory. Create if it does not exist """
     def createDirectoryIfNotExisting(self, folder):
@@ -62,6 +65,7 @@ class FileSearchModes:
     choice_None = 'Exit'
     choice_fileBinary = 'Duplicate files (byte search)'
     choice_imagePixels = 'Duplicate images (pixel search)'    
+    choice_residualFiles = 'Delete residual files (like Thumbs.db etc.)'
     
 class FirstChoiceMenu:
     def __init__(self):
@@ -73,7 +77,7 @@ class FirstChoiceMenu:
         #---choose mode of running        
         layout = [
                     [sg.Text('What kind of search do you want to do?')],
-                    [sg.Combo([FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels], default_value=FileSearchModes.choice_fileBinary)],        
+                    [sg.Combo([FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels, FileSearchModes.choice_residualFiles], default_value=FileSearchModes.choice_fileBinary)],        
                     [sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')],
                     [sg.Cancel(), sg.OK()]
                  ]
@@ -128,13 +132,64 @@ class FolderChoiceMenu:
 
 class FileSearchBinaryMode:
     def __init__(self, foldername):
+        self.CHUNK_SIZE = 8 * 1024
+        self.alreadyProcessedFile = "."
         self.fileOps = FileOperations()
-        folderPaths, filesInFolder, fileSizes = self.fileOps.getNames(foldername)
+        self.baseFolder = foldername
+        self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getNames(self.baseFolder)
+        self.report = []
+    
+    def search(self):
         #---initiate search for duplicates
-        for folderOrdinal in range(len(folderPaths)):
-            filenames = filesInFolder[folderOrdinal]
-            for fileOrdinal in range(len(filenames)):
-                pass
+        for folderOrdinal in range(len(self.folderPaths)):#for each folder
+            filenames = self.filesInFolder[folderOrdinal]
+            path = self.folderPaths[folderOrdinal]
+            for fileOrdinal in range(len(filenames)):#for each file in the folder
+                filesize = self.fileSizes[folderOrdinal][fileOrdinal]
+                filename = self.filesInFolder[folderOrdinal][fileOrdinal]
+                #---compare with all files
+                for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder 
+                    for fileOrdinalToCompare in range(len(filenames)):#for each file in the folder
+                        if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
+                            continue
+                        if self.fileSizes[folderOrdinalToCompare][fileOrdinalToCompare] == self.alreadyProcessedFile:
+                            continue
+                        filesizeToCompare = self.fileSizes[folderOrdinalToCompare][fileOrdinalToCompare]
+                        if filesize == filesizeToCompare:#initial match found based on size
+                            pathToCompare = self.folderPaths[folderOrdinalToCompare]
+                            filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
+                            #---now compare based on file contents
+                            filesAreSame = self.__compareEntireFiles__(path + filename, pathToCompare + filenameToCompare)
+                            if filesAreSame:
+                                self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare)
+                                self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
+                self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
+    
+    def __moveFileToSeparateFolder__(self, folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare):
+        #if move not possible, copy and mention move issue in report
+        folder = self.folderPaths[folderOrdinal]
+        file = self.filesInFolder[folderOrdinal][fileOrdinal]        
+        dupFolder = self.folderPaths[folderOrdinalToCompare]
+        dupFile = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
+        #TODO: move file
+        reportString = folder + file + "'s duplicate: " + dupFolder + dupFile + " is moved to " + self.baseFolder + GlobalConstants.duplicatesFolder
+        self.report.append(reportString)
+        print(reportString)
+    
+    def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
+        self.filesInFolder[folderOrdinal][fileOrdinal] = self.alreadyProcessedFile            
+    
+    def __compareEntireFiles__(self, filename1, filename2):
+        with open(filename1, 'rb') as filePointer1, open(filename2, 'rb') as filePointer2:
+            while True:
+                chunk1 = filePointer1.read(self.CHUNK_SIZE)#TODO: try catch
+                chunk2 = filePointer2.read(self.CHUNK_SIZE)
+                if chunk1 != chunk2:
+                    return False
+                if not chunk1:#if chunk is of zero bytes (nothing more to read from file), return True because chunk2 will also be zero. If it wasn't zero, the previous if would've been False
+                    return True                        
+    
+
 
 #-----------------------------------------------
 #-----------------------------------------------
@@ -154,6 +209,7 @@ if __name__ == '__main__':
         whichFolder.showUserTheMenu()
         folderChosen = whichFolder.getUserChoice()
         fileSearcher = FileSearchBinaryMode(folderChosen)
+        fileSearcher.search()
     
     #---proceed with image search menu
     if userChoice == FileSearchModes.choice_imagePixels:
