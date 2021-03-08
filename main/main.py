@@ -6,16 +6,15 @@ Created on 19-Feb-2021
 
 # if running in py3, change the shebang, drop the next import for readability (it does no harm in py3)
 from __future__ import print_function   # py2 compatibility
-from collections import defaultdict
 import PySimpleGUI as sg
-import hashlib
-import filecmp
 import os
-import sys
 import shutil #for moving file
 
 class GlobalConstants:
     duplicatesFolder = "duplicatesFolder/"
+    EVENT_CANCEL = 'Cancel'
+    EVENT_EXIT = 'Cancel'
+    alreadyProcessedFile = "."
 
 class FileOperations:
     def __init__(self):
@@ -45,18 +44,18 @@ class FileOperations:
             filesInFolder.append(filesInThisFolder)            
         return folderPaths, filesInFolder, fileSizes #returns as [fullFolderPath1, fullFolderPath2, ...], [[filename1, filename2, filename3, ...], [], []], [[filesize1, filesize2, filesize3, ...], [], []]
     
-    """ Is this a valid file """
     def isValidFile(self, filenameWithPath):
-        return os.path.isfile(filenameWithPath)       
+        return os.path.isfile(filenameWithPath)   
     
-    """ Check for folder's existence in current working directory. Create if it does not exist """
+    def deleteFile(self, folder, file):
+        pass    
+    
     def createDirectoryIfNotExisting(self, folder):
         if not os.path.exists(folder): 
             try: os.makedirs(folder)
             except FileExistsError:#in case there's a race condition where some other process creates the directory before makedirs is called
                 pass      
             
-    """ Is this a valid directory """
     def isThisValidDirectory(self, folderpath):
         return os.path.exists(folderpath)
 
@@ -86,17 +85,17 @@ class FirstChoiceMenu:
         #---choose mode of running        
         layout = [
                     [sg.Text('What kind of search do you want to do?')],
-                    [sg.Combo([FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels, FileSearchModes.choice_residualFiles], default_value=FileSearchModes.choice_fileBinary)],        
+                    [sg.Combo([FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels, FileSearchModes.choice_residualFiles], default_value=FileSearchModes.choice_residualFiles)],        
                     [sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')],
-                    [sg.Cancel(), sg.OK()]
+                    [sg.Button(GlobalConstants.EVENT_CANCEL), sg.OK()]
                  ]
         window = sg.Window('', layout, element_justification='right', grab_anywhere=True)    
-        self.event, self.values = window.read()        
+        self.event, self.values = window.read()     
         window.close()
         
     def getUserChoice(self):
         retVal = None
-        if self.event == sg.WIN_CLOSED or self.event == 'Exit' or self.event == sg.Cancel:
+        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL:
             exit()
             #retVal = FileSearchModes.choice_None
         else:
@@ -109,24 +108,26 @@ class FolderChoiceMenu:
         self.values = None
         self.horizontalSepLen = 35       
     
-    def showUserTheMenu(self):
+    def showUserTheMenu(self, topText, bottomText):
         #---choose mode of running
-        layout = [
-                    [sg.Text('Which folder do you want to search in? ', justification='left')],
-                    [sg.Input(), sg.FolderBrowse()],        
-                    [sg.Text('Duplicate files are assumed to be inside the folder you choose. This', text_color='grey', justification='left')],
-                    [sg.Text('program will move all duplicates into a separate, newly created folder', text_color='grey', justification='left')],                    
-                    [sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')],
-                    [sg.Cancel(), sg.OK()]
-                  ]
-        window = sg.Window('', layout, element_justification='right', grab_anywhere=False)    
+        layout = []
+        for s in topText:
+            layout.append([sg.Text(s, justification='left')])
+        layout.append([sg.Input(), sg.FolderBrowse()])
+        for s in bottomText:
+            layout.append([sg.Text(s, text_color='grey', justification='left')])        
+        layout.append([sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')])
+        layout.append([sg.Button(GlobalConstants.EVENT_CANCEL), sg.Button('Ok')])
+        
+        window = sg.Window('', layout, grab_anywhere=False, element_justification='right')    
         self.event, self.values = window.read()        
         window.close()
     
     def getUserChoice(self):
         retVal = None
-        if self.event == sg.WIN_CLOSED or self.event == 'Exit' or self.event == sg.Cancel or self.values[0] == '':
-            retVal = FileSearchModes.choice_None
+        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[0] == '':
+            #retVal = FileSearchModes.choice_None
+            exit()
         else:
             fileOps = FileOperations()
             folderChosen = self.values[0]
@@ -134,15 +135,51 @@ class FolderChoiceMenu:
                 retVal = fileOps.folderSlash(folderChosen)
             else:
                 retVal = FileSearchModes.choice_None
-        if retVal == FileSearchModes.choice_None:
-            sg.popup('Please select a valid folder next time. Exiting now.')
-            exit()    
+#         if retVal == FileSearchModes.choice_None:
+#             sg.popup('Please select a valid folder next time. Exiting now.')
+#             exit()    
         return retVal   
 
+class StringInputMenu:
+    def __init__(self):
+        self.event = None
+        self.values = None
+        self.horizontalSepLen = 35       
+    
+    def showUserTheMenu(self, topText, bottomText):
+        #---choose mode of running
+        layout = []
+        for s in topText:
+            layout.append([sg.Text(s, justification='left')])
+        layout.append([sg.InputText('')])
+        for s in bottomText:
+            layout.append([sg.Text(s, text_color='grey', justification='left')])        
+        layout.append([sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')])
+        layout.append([sg.Button(GlobalConstants.EVENT_CANCEL), sg.Button('Ok')])
+                
+#         layout = [
+#                     [sg.Text('Which files do you want to get rid of? (names are case sensitive) ', justification='left')],
+#                     [sg.InputText('')],        
+#                     [sg.Text('For example, you could type them as comma separated file names: ', text_color='grey', justification='left')],
+#                     [sg.Text('Thumbs.db, Desktop.ini', text_color='grey', justification='left')],                    
+#                     [sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')],
+#                     [sg.Button(GlobalConstants.EVENT_CANCEL), sg.Button('Ok')] #[sg.Cancel(), sg.OK()]
+#                   ]
+        window = sg.Window('', layout, grab_anywhere=False, element_justification='right')    
+        self.event, self.values = window.read()        
+        window.close()
+    
+    def getUserChoice(self):
+        filesChosen = self.values[0]
+        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or filesChosen == '':
+            if filesChosen == '':
+                print('Exited. No filename was mentioned')
+            exit()
+        return filesChosen.split(',')
+    
 class FileSearchBinaryMode:
     def __init__(self, foldername):
-        self.CHUNK_SIZE = 8 * 1024
-        self.alreadyProcessedFile = "."
+        self.CHUNK_SIZE = 8 * 1024        
         self.fileOps = FileOperations()
         self.baseFolder = foldername
         self.folderForDuplicates = self.baseFolder + GlobalConstants.duplicatesFolder
@@ -162,7 +199,7 @@ class FileSearchBinaryMode:
                 duplicateOrdinal = 1
                 filesize = self.fileSizes[folderOrdinal][fileOrdinal]
                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
-                if self.fileSizes[folderOrdinal][fileOrdinal] == self.alreadyProcessedFile:
+                if filename == GlobalConstants.alreadyProcessedFile:
                     continue
                 #---compare with all files
                 for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder
@@ -174,7 +211,7 @@ class FileSearchBinaryMode:
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
                         if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
                             continue
-                        if filenameToCompare == self.alreadyProcessedFile:
+                        if filenameToCompare == GlobalConstants.alreadyProcessedFile:
                             continue
                         
                         filesizeToCompare = self.fileSizes[folderOrdinalToCompare][fileOrdinalToCompare]
@@ -207,7 +244,7 @@ class FileSearchBinaryMode:
         self.report.append(reportString)
     
     def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
-        self.filesInFolder[folderOrdinal][fileOrdinal] = self.alreadyProcessedFile            
+        self.filesInFolder[folderOrdinal][fileOrdinal] = GlobalConstants.alreadyProcessedFile            
     
     def __compareEntireFiles__(self, filename1, filename2):
         with open(filename1, 'rb') as filePointer1, open(filename2, 'rb') as filePointer2:
@@ -220,6 +257,38 @@ class FileSearchBinaryMode:
                     return True                        
     
 
+class FileSearchDeleteResiduals:
+    def __init__(self, foldername):
+        self.fileOps = FileOperations()
+        self.baseFolder = foldername
+        self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getNames(self.baseFolder)
+        self.report = []
+    
+    def searchAndDestroy(self, filesToDelete):
+        atLeastOneFileFound = False
+        #---initiate search for duplicates
+        for folderOrdinal in range(len(self.folderPaths)):#for each folder
+            filenames = self.filesInFolder[folderOrdinal]
+            for fileOrdinal in range(len(filenames)):#for each file in the folder
+                filename = self.filesInFolder[folderOrdinal][fileOrdinal]
+                if filename in filesToDelete:
+                    self.__deleteFile__(folderOrdinal, fileOrdinal)
+        if not atLeastOneFileFound:
+            self.report = ["No files found"]
+    
+    def showReport(self):
+        for aLine in self.report:
+            print(aLine)
+    
+    def __deleteFile__(self, folderOrdinal, fileOrdinal):  
+        #TODO: if delete not possible, mention it in the generated report
+        folder = self.folderPaths[folderOrdinal]
+        file = self.filesInFolder[folderOrdinal][fileOrdinal]        
+        self.fileOps.deleteFile(folder, file)
+        reportString = folder + file + " deleted."
+        self.report.append(reportString)
+                          
+    
 
 #-----------------------------------------------
 #-----------------------------------------------
@@ -235,9 +304,13 @@ if __name__ == '__main__':
     
     #---proceed with file search menu
     if userChoice == FileSearchModes.choice_fileBinary:
+        #---get folder name
+        topText = ['Which folder do you want to search in? ']        
+        bottomText = ['Duplicate files are assumed to be inside the folder you choose. This', 'program will move all duplicates into a separate, newly created folder']        
         whichFolder = FolderChoiceMenu()
-        whichFolder.showUserTheMenu()
+        whichFolder.showUserTheMenu(topText, bottomText)
         folderChosen = whichFolder.getUserChoice()
+        #---search
         fileSearcher = FileSearchBinaryMode(folderChosen)
         fileSearcher.search()
         fileSearcher.showReport()
@@ -248,9 +321,21 @@ if __name__ == '__main__':
     
     #---specify what file to remove from folder and subfolders
     if userChoice == FileSearchModes.choice_residualFiles:
-        pass
-        
-
+        #---get filenames
+        topText = ['Which files do you want to get rid of? (names are case sensitive)']
+        bottomText = ['For example, you could type them as comma separated file names: ', 'Thumbs.db, Desktop.ini'] 
+        whichFiles = StringInputMenu() #get filename(s)
+        whichFiles.showUserTheMenu(topText, bottomText)
+        filesToDelete = whichFiles.getUserChoice()
+        #---get foldername
+        topText = ['Which folder do you want to search in? ']        
+        bottomText = ['Subfolders will also be searched to delete these files:', str(filesToDelete)]        
+        whichFolder = FolderChoiceMenu() #get folder in which to start recursively searching and deleting files
+        whichFolder.showUserTheMenu(topText, bottomText)
+        folderChosen = whichFolder.getUserChoice()        
+        #---search and destroy
+        fileDeleter = FileSearchDeleteResiduals(folderChosen)
+        fileDeleter.searchAndDestroy(filesToDelete)
 
 # import os, sys
 # import Image
