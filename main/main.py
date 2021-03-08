@@ -12,6 +12,7 @@ import hashlib
 import filecmp
 import os
 import sys
+import shutil #for moving file
 
 class GlobalConstants:
     duplicatesFolder = "duplicatesFolder/"
@@ -42,7 +43,11 @@ class FileOperations:
                 sizeOfFiles.append(fileProperties.st_size)
             fileSizes.append(sizeOfFiles)
             filesInFolder.append(filesInThisFolder)            
-        return folderPaths, filesInFolder, fileSizes #returns as [fullFolderPath1, fullFolderPath2, ...], [[filename1, filename2, filename3, ...], [], []], [[filesize1, filesize2, filesize3, ...], [], []]  
+        return folderPaths, filesInFolder, fileSizes #returns as [fullFolderPath1, fullFolderPath2, ...], [[filename1, filename2, filename3, ...], [], []], [[filesize1, filesize2, filesize3, ...], [], []]
+    
+    """ Is this a valid file """
+    def isValidFile(self, filenameWithPath):
+        return os.path.isfile(filenameWithPath)       
     
     """ Check for folder's existence in current working directory. Create if it does not exist """
     def createDirectoryIfNotExisting(self, folder):
@@ -54,7 +59,11 @@ class FileOperations:
     """ Is this a valid directory """
     def isThisValidDirectory(self, folderpath):
         return os.path.exists(folderpath)
-            
+
+    """ Move file to another directory. Renaming while moving is possible """
+    def moveFile(self, existingPath, existingFilename, newPath, newFilename):
+        shutil.move(existingPath + existingFilename, newPath + newFilename)    
+    
     """ Adds a slash at the end of the folder name if it isn't already present """
     def folderSlash(self, folderName):
         if folderName.endswith('/') == False: 
@@ -136,22 +145,31 @@ class FileSearchBinaryMode:
         self.alreadyProcessedFile = "."
         self.fileOps = FileOperations()
         self.baseFolder = foldername
+        self.folderForDuplicates = self.baseFolder + GlobalConstants.duplicatesFolder
+        self.fileOps.createDirectoryIfNotExisting(self.folderForDuplicates)
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getNames(self.baseFolder)
         self.report = []
     
     def search(self):
+        atLeastOneDuplicateFound = False
         #---initiate search for duplicates
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
             filenames = self.filesInFolder[folderOrdinal]
             path = self.folderPaths[folderOrdinal]
+            if path == self.folderForDuplicates:#dont search an existing duplicates folder
+                continue
             for fileOrdinal in range(len(filenames)):#for each file in the folder
+                duplicateOrdinal = 1
                 filesize = self.fileSizes[folderOrdinal][fileOrdinal]
                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
                 if self.fileSizes[folderOrdinal][fileOrdinal] == self.alreadyProcessedFile:
                     continue
                 #---compare with all files
                 for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder
-                    filenamesToCompare = self.filesInFolder[folderOrdinalToCompare] 
+                    filenamesToCompare = self.filesInFolder[folderOrdinalToCompare]
+                    pathToCompare = self.folderPaths[folderOrdinalToCompare] 
+                    if pathToCompare == self.folderForDuplicates:#dont search an existing duplicates folder
+                        continue                     
                     for fileOrdinalToCompare in range(len(filenamesToCompare)):#for each file in the folder
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
                         if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
@@ -161,25 +179,32 @@ class FileSearchBinaryMode:
                         
                         filesizeToCompare = self.fileSizes[folderOrdinalToCompare][fileOrdinalToCompare]
                         if filesize == filesizeToCompare:#initial match found based on size
-                            pathToCompare = self.folderPaths[folderOrdinalToCompare]                                                        
+                                                                                   
                             #---now compare based on file contents
                             filesAreSame = self.__compareEntireFiles__(path + filename, pathToCompare + filenameToCompare)
                             if filesAreSame:
-                                self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare)
+                                atLeastOneDuplicateFound = True
+                                duplicateOrdinal = duplicateOrdinal + 1
+                                self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal)
                                 self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
                 self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
+        if not atLeastOneDuplicateFound:
+            self.report = ["No duplicates found"]
     
-    def __moveFileToSeparateFolder__(self, folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare):
+    def showReport(self):
+        for aLine in self.report:
+            print(aLine)
+    
+    def __moveFileToSeparateFolder__(self, folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal):
         #Note: Empty files will be identified as duplicates of other empty files. It's normal.  
         #TODO: if move not possible, copy and mention any move issues in the generated report
         folder = self.folderPaths[folderOrdinal]
         file = self.filesInFolder[folderOrdinal][fileOrdinal]        
         dupFolder = self.folderPaths[folderOrdinalToCompare]
         dupFile = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
-        #TODO: move file
-        reportString = folder + file + "'s duplicate: " + dupFolder + dupFile + " is moved to " + self.baseFolder + GlobalConstants.duplicatesFolder
+        self.fileOps.moveFile(dupFolder, dupFile, self.folderForDuplicates, file+"_"+str(duplicateOrdinal)) #TODO: can have a try catch to check if directory exists, before doing the move
+        reportString = folder + file + "'s duplicate: " + dupFolder + dupFile + " is renamed and moved to " + self.folderForDuplicates
         self.report.append(reportString)
-        print(reportString)
     
     def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
         self.filesInFolder[folderOrdinal][fileOrdinal] = self.alreadyProcessedFile            
@@ -215,6 +240,7 @@ if __name__ == '__main__':
         folderChosen = whichFolder.getUserChoice()
         fileSearcher = FileSearchBinaryMode(folderChosen)
         fileSearcher.search()
+        fileSearcher.showReport()
     
     #---proceed with image search menu
     if userChoice == FileSearchModes.choice_imagePixels:
