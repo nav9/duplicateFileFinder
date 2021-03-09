@@ -48,7 +48,7 @@ class FileOperations:
         return os.path.isfile(filenameWithPath)   
     
     def deleteFile(self, folder, file):
-        pass    
+        os.remove(folder + file) #TODO: check if file exists before deleting
     
     def createDirectoryIfNotExisting(self, folder):
         if not os.path.exists(folder): 
