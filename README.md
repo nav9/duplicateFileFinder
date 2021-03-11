@@ -5,6 +5,7 @@ This program finds duplicate files in a folder and its subfolders. Duplicates ar
 There is also a mode for checking image file similarity using the image's pixels, even if the images are in different file formats.  
   
 # To run the program  
+Install this first: python3 -m pip install filetype
 Simply run the main file with:  
 python3 main.py  
 
