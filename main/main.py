@@ -204,7 +204,7 @@ class FileDuplicateSearchBinaryMode:
         self.folderForDuplicateFiles = self.baseFolder + GlobalConstants.duplicateFilesFolder
         self.fileOps.createDirectoryIfNotExisting(self.folderForDuplicateFiles)
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
-        self.report = []
+        self.report = ['Duplicates will be stored in: '+self.folderForDuplicateFiles]
     
     def search(self):        
         atLeastOneDuplicateFound = False
@@ -287,7 +287,7 @@ class FileSearchDeleteSpecifiedFiles:
         self.fileOps = FileOperations()
         self.baseFolder = foldername
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
-        self.report = []
+        self.report = ['Duplicates will be stored in: '+self.baseFolder]
     
     def searchAndDestroy(self, filesToDelete):
         atLeastOneFileFound = False
@@ -326,7 +326,7 @@ class FileSearchDeleteSpecifiedFiles:
 #         self.folderForDuplicateImages = self.baseFolder + GlobalConstants.duplicateImagesFolder
 #         self.fileOps.createDirectoryIfNotExisting(self.folderForDuplicateImages)
 #         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
-#         self.report = []
+#         self.report = ['Duplicates will be stored in: '+self.folderForDuplicateFiles]
 #     
 #     def search(self):
 #         atLeastOneDuplicateFound = False
