@@ -8,8 +8,11 @@ from __future__ import print_function   # py2 compatibility
 import PySimpleGUI as sg
 import os
 import shutil #for moving file
+import datetime
 #import filetype
 #import Image
+
+#TODO: create a memory of the last location that was searched, and show that as the default when doing a folder search
 
 class GlobalConstants:
     duplicateFilesFolder = "duplicateFilesFolder/"
@@ -55,13 +58,22 @@ class FileOperations:
     
     def deleteFile(self, folder, file):
         os.remove(folder + file) #TODO: check if file exists before deleting
+        
+    def writeReportToFile(self, path, report):
+        fileName = path + "Report_" + str(datetime.datetime.now()) + ".txt"
+        fileHandle = open(fileName, 'w')
+        for line in report:
+            fileHandle.write(line)
+            fileHandle.write("\n")
+        fileHandle.close()
+        return fileName
     
     def createDirectoryIfNotExisting(self, folder):
         if not os.path.exists(folder): 
             try: os.makedirs(folder)
             except FileExistsError:#in case there's a race condition where some other process creates the directory before makedirs is called
-                pass      
-            
+                pass
+    
     def isThisValidDirectory(self, folderpath):
         return os.path.exists(folderpath)
 
@@ -236,13 +248,11 @@ class FileDuplicateSearchBinaryMode:
         if not atLeastOneDuplicateFound:
             self.report = ["No duplicates found"]
     
-    def showReport(self):
+    def generateReport(self):
         for aLine in self.report:
             print(aLine)
-            
-    def saveReport(self):
-        #TODO: use fileOps to write the report to a file
-        pass
+        reportFilename = self.fileOps.writeReportToFile(self.folderForDuplicateFiles, self.report)
+        return reportFilename
     
     def __moveFileToSeparateFolder__(self, folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal):
         #Note: Empty files will be identified as duplicates of other empty files. It's normal.  
@@ -293,9 +303,11 @@ class FileSearchDeleteSpecifiedFiles:
         if not atLeastOneFileFound:
             self.report = ["No files found"]
     
-    def showReport(self):
+    def generateReport(self):
         for aLine in self.report:
             print(aLine)
+        reportFilename = self.fileOps.writeReportToFile(self.baseFolder, self.report)
+        return reportFilename
     
     def __deleteFile__(self, folderOrdinal, fileOrdinal):  
         #TODO: if delete not possible, mention it in the generated report
@@ -365,9 +377,11 @@ class FileSearchDeleteSpecifiedFiles:
 #         filename, fileExtension = os.path.splitext(folder + file)
 #         return fileExtension in self.supportedFileExtensions:
 #     
-#     def showReport(self):
+#     def generateReport(self):
 #         for aLine in self.report:
 #             print(aLine)
+#         reportFilename = self.fileOps.writeReportToFile(self.folderForDuplicateImages, self.report)
+#         return reportFilename
 #     
 #     def __moveFileToSeparateFolder__(self, folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal):
 #         #TODO: if move not possible, copy and mention any move issues in the generated report
@@ -434,7 +448,8 @@ if __name__ == '__main__':
         #---search for diplicates
         fileSearcher = FileDuplicateSearchBinaryMode(folderChosen)
         fileSearcher.search()
-        fileSearcher.showReport()
+        reportFilename = fileSearcher.generateReport()
+        sg.popup('Completed. Report is here: ' + reportFilename, keep_on_top=True)
     
 #     #---proceed with image search menu
 #     """ Image search is useful in cases where for example, an image is in jpg format and the same image is also present in png or webp format and you want to delete one of the duplicates """
@@ -465,7 +480,8 @@ if __name__ == '__main__':
         #---search and destroy
         fileDeleter = FileSearchDeleteSpecifiedFiles(folderChosen)
         fileDeleter.searchAndDestroy(filesToDelete)
-        fileDeleter.showReport()
+        reportFilename = fileDeleter.generateReport()
+        sg.popup('Completed. Report is here: ' + reportFilename, keep_on_top=True)
     
     print('Program ended')
     
