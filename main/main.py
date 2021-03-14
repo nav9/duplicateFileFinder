@@ -49,6 +49,10 @@ class FileOperations:
     def isValidFile(self, filenameWithPath):
         return os.path.isfile(filenameWithPath)   
     
+    def getFilenameAndExtension(self, filenameOrPathWithFilename):
+        filename, fileExtension = os.path.splitext(filenameOrPathWithFilename)
+        return filename, fileExtension
+    
     def deleteFile(self, folder, file):
         os.remove(folder + file) #TODO: check if file exists before deleting
     
@@ -190,16 +194,17 @@ class FileDuplicateSearchBinaryMode:
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
         self.report = []
     
-    def search(self):
+    def search(self):        
         atLeastOneDuplicateFound = False
         #---initiate search for duplicates
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
             filenames = self.filesInFolder[folderOrdinal]
             path = self.folderPaths[folderOrdinal]
+            print('Searching in ', path)
             if path == self.folderForDuplicateFiles:#dont search an existing duplicates folder
                 continue
             for fileOrdinal in range(len(filenames)):#for each file in the folder
-                duplicateOrdinal = 1
+                duplicateOrdinal = 0
                 filesize = self.fileSizes[folderOrdinal][fileOrdinal]
                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
                 if filename == GlobalConstants.alreadyProcessedFile:
@@ -208,7 +213,7 @@ class FileDuplicateSearchBinaryMode:
                 for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder
                     filenamesToCompare = self.filesInFolder[folderOrdinalToCompare]
                     pathToCompare = self.folderPaths[folderOrdinalToCompare] 
-                    if pathToCompare == self.folderForDuplicateFiles:#dont search an existing duplicates folder
+                    if pathToCompare == self.folderForDuplicateFiles:#don't search an existing duplicates folder
                         continue                     
                     for fileOrdinalToCompare in range(len(filenamesToCompare)):#for each file in the folder
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
@@ -234,6 +239,10 @@ class FileDuplicateSearchBinaryMode:
     def showReport(self):
         for aLine in self.report:
             print(aLine)
+            
+    def saveReport(self):
+        #TODO: use fileOps to write the report to a file
+        pass
     
     def __moveFileToSeparateFolder__(self, folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal):
         #Note: Empty files will be identified as duplicates of other empty files. It's normal.  
@@ -242,7 +251,10 @@ class FileDuplicateSearchBinaryMode:
         file = self.filesInFolder[folderOrdinal][fileOrdinal]        
         dupFolder = self.folderPaths[folderOrdinalToCompare]
         dupFile = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
-        self.fileOps.moveFile(dupFolder, dupFile, self.folderForDuplicateFiles, file+"_"+str(duplicateOrdinal)) #TODO: can have a try catch to check if directory exists, before doing the move
+        #TODO: check if string length is appropriate for the filesystem        
+        fileName, fileExtension = self.fileOps.getFilenameAndExtension(file)
+        #TODO: can have a try catch to check if directory exists, before doing the move (in case the directory gets deleted during runtime)
+        self.fileOps.moveFile(dupFolder, dupFile, self.folderForDuplicateFiles, fileName+"_"+str(duplicateOrdinal)+fileExtension) 
         reportString = folder + file + "'s duplicate: " + dupFolder + dupFile + " is renamed and moved to " + self.folderForDuplicateFiles
         self.report.append(reportString)
     
@@ -272,6 +284,8 @@ class FileSearchDeleteSpecifiedFiles:
         #---initiate search for duplicates
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
             filenames = self.filesInFolder[folderOrdinal]
+            path = self.folderPaths[folderOrdinal]
+            print('Searching in ', path)
             for fileOrdinal in range(len(filenames)):#for each file in the folder
                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
                 if filename in filesToDelete:
@@ -311,7 +325,7 @@ class FileSearchDeleteSpecifiedFiles:
 #             if path == self.folderForDuplicateImages:#don't search an existing duplicates folder
 #                 continue
 #             for fileOrdinal in range(len(filenames)):#for each file in the folder
-#                 duplicateOrdinal = 1
+#                 duplicateOrdinal = 0
 #                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
 #                 if filename == GlobalConstants.alreadyProcessedFile:
 #                     continue
@@ -452,6 +466,9 @@ if __name__ == '__main__':
         fileDeleter = FileSearchDeleteSpecifiedFiles(folderChosen)
         fileDeleter.searchAndDestroy(filesToDelete)
         fileDeleter.showReport()
-
+    
+    print('Program ended')
+    
+    
     
     
