@@ -13,12 +13,15 @@ import datetime
 #import Image
 
 #TODO: create a memory of the last location that was searched, and show that as the default when doing a folder search
+#TODO: Use a CI to automatically run tests and to use pyinstaller to generate an installer file
 
 class GlobalConstants:
     duplicateFilesFolder = "duplicateFilesFolder/"
     #duplicateImagesFolder = "duplicateImagesFolder/"
     EVENT_CANCEL = 'Cancel'
     EVENT_EXIT = 'Cancel'
+    YES_BUTTON = 'Yes'
+    NO_BUTTON = 'No'
     alreadyProcessedFile = "."
 
 class FileOperations:
@@ -89,9 +92,9 @@ class FileOperations:
 
 class FileSearchModes:
     choice_None = 'Exit'
-    choice_fileBinary = 'Duplicate files (byte search)'
+    choice_fileBinary = 'Duplicate files segregation'
     #choice_imagePixels = 'Duplicate images (pixel search)'    
-    choice_residualFiles = 'Delete residual files (like Thumbs.db etc.)'
+    choice_residualFiles = 'Delete files (like Thumbs.db etc.)'
     
 class FirstChoiceMenu:
     def __init__(self):
@@ -102,7 +105,7 @@ class FirstChoiceMenu:
     def showUserTheMenu(self):
         #---choose mode of running        
         layout = [
-                    [sg.Text('What kind of search do you want to do?')],
+                    [sg.Text('What kind of operation do you want to do?')],
                     #[sg.Combo([FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels, FileSearchModes.choice_residualFiles], default_value=FileSearchModes.choice_residualFiles)],
                     [sg.Combo([FileSearchModes.choice_fileBinary, FileSearchModes.choice_residualFiles], default_value=FileSearchModes.choice_fileBinary)],        
                     [sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')],
@@ -196,6 +199,33 @@ class StringInputMenu:
             exit()
         return filesChosen.split(',')
     
+class YesNoMenu:
+    def __init__(self):
+        self.event = None
+        self.values = None
+    
+    def showUserTheDialogBox(self, questionText):
+        layout = []
+        for s in questionText:
+            layout.append([sg.Text(s, justification='right')])
+
+        layout.append([sg.Button(GlobalConstants.YES_BUTTON), sg.Button(GlobalConstants.NO_BUTTON)])
+
+        window = sg.Window('', layout, grab_anywhere=False, element_justification='right')    
+        self.event, self.values = window.read()        
+        window.close()
+    
+    def getUserChoice(self):
+        answer = False #by default, the answer is "No"
+        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT:
+            print('Exited. No choice made')
+            exit()
+        if self.event == GlobalConstants.YES_BUTTON:
+            print('CASE SENSITIVE')
+            answer = True
+        return answer
+        
+    
 class FileDuplicateSearchBinaryMode:
     def __init__(self, foldername):
         self.CHUNK_SIZE = 8 * 1024        
@@ -204,7 +234,8 @@ class FileDuplicateSearchBinaryMode:
         self.folderForDuplicateFiles = self.baseFolder + GlobalConstants.duplicateFilesFolder
         self.fileOps.createDirectoryIfNotExisting(self.folderForDuplicateFiles)
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
-        self.report = ['Duplicates will be stored in: '+self.folderForDuplicateFiles]
+        self.report = ['Searching in : ' + self.baseFolder]
+        self.report.append('Duplicates will be stored in: ' + self.folderForDuplicateFiles)
     
     def search(self):        
         atLeastOneDuplicateFound = False
@@ -246,7 +277,7 @@ class FileDuplicateSearchBinaryMode:
                                 self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
                 self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
         if not atLeastOneDuplicateFound:
-            self.report = ["No duplicates found"]
+            self.report.append("No duplicates found")
     
     def generateReport(self):
         for aLine in self.report:
@@ -287,10 +318,12 @@ class FileSearchDeleteSpecifiedFiles:
         self.fileOps = FileOperations()
         self.baseFolder = foldername
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
-        self.report = ['Duplicates will be stored in: '+self.baseFolder]
+        self.report = ['Searching in: '+self.baseFolder]
+        self.atLeastOneFileFound = False
     
-    def searchAndDestroy(self, filesToDelete):
-        atLeastOneFileFound = False
+    def searchAndDestroy(self, filesToDelete, caseSensitive):
+        self.report.append("Files to delete: " + str(filesToDelete))
+        
         #---initiate search for duplicates
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
             filenames = self.filesInFolder[folderOrdinal]
@@ -298,10 +331,13 @@ class FileSearchDeleteSpecifiedFiles:
             print('Searching in ', path)
             for fileOrdinal in range(len(filenames)):#for each file in the folder
                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
+                print('Filename:', filename, ", ToDel:", filesToDelete)
+                if not caseSensitive:
+                    filename = filename.lower()
                 if filename in filesToDelete:
                     self.__deleteFile__(folderOrdinal, fileOrdinal)
-        if not atLeastOneFileFound:
-            self.report = ["No files found"]
+        if not self.atLeastOneFileFound:
+            self.report.append("No files found")
     
     def generateReport(self):
         for aLine in self.report:
@@ -310,13 +346,14 @@ class FileSearchDeleteSpecifiedFiles:
         return reportFilename
     
     def __deleteFile__(self, folderOrdinal, fileOrdinal):  
-        #TODO: if delete not possible, mention it in the generated report
+        #TODO: if delete not possible, mention it in the generated report and don't make atLeastOneFileFound true
         folder = self.folderPaths[folderOrdinal]
         file = self.filesInFolder[folderOrdinal][fileOrdinal]        
         self.fileOps.deleteFile(folder, file)
         reportString = "Deleted " + folder + file
         self.report.append(reportString)
-                          
+        self.atLeastOneFileFound = True
+        
 
 # class FileSearchImageMode:
 #     def __init__(self, foldername):        
@@ -445,7 +482,7 @@ if __name__ == '__main__':
         whichFolder = FolderChoiceMenu()
         whichFolder.showUserTheMenu(topText, bottomText)
         folderChosen = whichFolder.getUserChoice()
-        #---search for diplicates
+        #---search for duplicates
         fileSearcher = FileDuplicateSearchBinaryMode(folderChosen)
         fileSearcher.search()
         reportFilename = fileSearcher.generateReport()
@@ -470,6 +507,13 @@ if __name__ == '__main__':
         whichFiles = StringInputMenu() #get filename(s)
         whichFiles.showUserTheMenu(topText, bottomText)
         filesToDelete = whichFiles.getUserChoice()
+        #---get case sensitivity choice
+        yesNoMenuText = ['Should filenames be case sensitive?']
+        yesNo = YesNoMenu()
+        yesNo.showUserTheDialogBox(yesNoMenuText)
+        caseSensitive = yesNo.getUserChoice()
+        if not caseSensitive:
+            filesToDelete = [x.lower() for x in filesToDelete]
         #---get foldername
         topText = ['Which folder do you want to search in? ']        
         bottomText = ['Subfolders will also be searched to delete these files:', str(filesToDelete)]        
@@ -479,7 +523,7 @@ if __name__ == '__main__':
         #TODO: can have a confirmation dialog box for safety         
         #---search and destroy
         fileDeleter = FileSearchDeleteSpecifiedFiles(folderChosen)
-        fileDeleter.searchAndDestroy(filesToDelete)
+        fileDeleter.searchAndDestroy(filesToDelete, caseSensitive)
         reportFilename = fileDeleter.generateReport()
         sg.popup('Completed. Report is here: ' + reportFilename, keep_on_top=True)
     
