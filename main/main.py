@@ -231,13 +231,13 @@ class FileDuplicateSearchBinaryMode:
         self.CHUNK_SIZE = 8 * 1024        
         self.fileOps = FileOperations()
         self.baseFolder = foldername
-        self.folderForDuplicateFiles = self.baseFolder + GlobalConstants.duplicateFilesFolder
-        self.fileOps.createDirectoryIfNotExisting(self.folderForDuplicateFiles)
+        self.folderForDuplicateFiles = self.baseFolder + GlobalConstants.duplicateFilesFolder        
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
         self.report = ['Searching in : ' + self.baseFolder]
         self.report.append('Duplicates will be stored in: ' + self.folderForDuplicateFiles)
     
     def search(self):        
+        firstDuplicate = False
         atLeastOneDuplicateFound = False
         #---initiate search for duplicates
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
@@ -271,6 +271,9 @@ class FileDuplicateSearchBinaryMode:
                             #---now compare based on file contents
                             filesAreSame = self.__compareEntireFiles__(path + filename, pathToCompare + filenameToCompare)
                             if filesAreSame:
+                                if not firstDuplicate:
+                                    firstDuplicate = True
+                                    self.fileOps.createDirectoryIfNotExisting(self.folderForDuplicateFiles)
                                 atLeastOneDuplicateFound = True
                                 duplicateOrdinal = duplicateOrdinal + 1
                                 self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal)
@@ -361,11 +364,11 @@ class FileSearchDeleteSpecifiedFiles:
 #         self.baseFolder = foldername
 #         self.supportedFileExtensions = ['jpg', 'png', 'gif', 'webp']
 #         self.folderForDuplicateImages = self.baseFolder + GlobalConstants.duplicateImagesFolder
-#         self.fileOps.createDirectoryIfNotExisting(self.folderForDuplicateImages)
 #         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
 #         self.report = ['Duplicates will be stored in: '+self.folderForDuplicateFiles]
 #     
 #     def search(self):
+#         firstDuplicate = False
 #         atLeastOneDuplicateFound = False
 #         #---initiate search for duplicates
 #         for folderOrdinal in range(len(self.folderPaths)):#for each folder
@@ -400,6 +403,9 @@ class FileSearchDeleteSpecifiedFiles:
 #                         #---now compare based on file contents
 #                         filesAreSame = self.__compareEntireImage__(path + filename, pathToCompare + filenameToCompare)
 #                         if filesAreSame:
+#                                 if not firstDuplicate:
+#                                     firstDuplicate = True
+#                                     self.fileOps.createDirectoryIfNotExisting(self.folderForDuplicateFiles)
 #                             atLeastOneDuplicateFound = True
 #                             duplicateOrdinal = duplicateOrdinal + 1
 #                             self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal)
