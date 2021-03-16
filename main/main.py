@@ -14,7 +14,8 @@ import datetime
 
 #TODO: create a memory of the last location that was searched, and show that as the default when doing a folder search
 #TODO: Use a CI to automatically run tests and to use pyinstaller to generate an installer file
-
+#TODO: Add an option to undo the duplicate file move
+#TODO: Add a progress bar and also output progress percentage with current time to command prompt.
 class GlobalConstants:
     duplicateFilesFolder = "duplicateFilesFolder/"
     #duplicateImagesFolder = "duplicateImagesFolder/"
@@ -243,9 +244,9 @@ class FileDuplicateSearchBinaryMode:
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
             filenames = self.filesInFolder[folderOrdinal]
             path = self.folderPaths[folderOrdinal]
-            print('Searching in ', path)
             if path == self.folderForDuplicateFiles:#dont search an existing duplicates folder
                 continue
+            print('Searching in ', path)                
             for fileOrdinal in range(len(filenames)):#for each file in the folder
                 duplicateOrdinal = 0
                 filesize = self.fileSizes[folderOrdinal][fileOrdinal]
@@ -258,13 +259,14 @@ class FileDuplicateSearchBinaryMode:
                     pathToCompare = self.folderPaths[folderOrdinalToCompare] 
                     if pathToCompare == self.folderForDuplicateFiles:#don't search an existing duplicates folder
                         continue                     
+                    print('Comparing in ', pathToCompare)                        
                     for fileOrdinalToCompare in range(len(filenamesToCompare)):#for each file in the folder
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
                         if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
                             continue
                         if filenameToCompare == GlobalConstants.alreadyProcessedFile:
                             continue
-                        
+                        #print('Is ', filename, '==', filenameToCompare)                        
                         filesizeToCompare = self.fileSizes[folderOrdinalToCompare][fileOrdinalToCompare]
                         if filesize == filesizeToCompare:#initial match found based on size
                                                                                    
@@ -285,7 +287,8 @@ class FileDuplicateSearchBinaryMode:
     def generateReport(self):
         for aLine in self.report:
             print(aLine)
-        reportFilename = self.fileOps.writeReportToFile(self.folderForDuplicateFiles, self.report)
+        if atLeastOneDuplicateFound:
+            reportFilename = self.fileOps.writeReportToFile(self.folderForDuplicateFiles, self.report)
         return reportFilename
     
     def __moveFileToSeparateFolder__(self, folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal):
