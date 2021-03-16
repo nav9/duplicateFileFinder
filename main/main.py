@@ -239,7 +239,7 @@ class FileDuplicateSearchBinaryMode:
     
     def search(self):        
         firstDuplicate = False
-        atLeastOneDuplicateFound = False
+        self.atLeastOneDuplicateFound = False
         #---initiate search for duplicates
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
             filenames = self.filesInFolder[folderOrdinal]
@@ -276,18 +276,18 @@ class FileDuplicateSearchBinaryMode:
                                 if not firstDuplicate:
                                     firstDuplicate = True
                                     self.fileOps.createDirectoryIfNotExisting(self.folderForDuplicateFiles)
-                                atLeastOneDuplicateFound = True
+                                self.atLeastOneDuplicateFound = True
                                 duplicateOrdinal = duplicateOrdinal + 1
                                 self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal)
                                 self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
                 self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
-        if not atLeastOneDuplicateFound:
+        if not self.atLeastOneDuplicateFound:
             self.report.append("No duplicates found")
     
     def generateReport(self):
         for aLine in self.report:
             print(aLine)
-        if atLeastOneDuplicateFound:
+        if self.atLeastOneDuplicateFound:
             reportFilename = self.fileOps.writeReportToFile(self.folderForDuplicateFiles, self.report)
         return reportFilename
     
@@ -372,7 +372,7 @@ class FileSearchDeleteSpecifiedFiles:
 #     
 #     def search(self):
 #         firstDuplicate = False
-#         atLeastOneDuplicateFound = False
+#         self.atLeastOneDuplicateFound = False
 #         #---initiate search for duplicates
 #         for folderOrdinal in range(len(self.folderPaths)):#for each folder
 #             filenames = self.filesInFolder[folderOrdinal]
@@ -409,12 +409,12 @@ class FileSearchDeleteSpecifiedFiles:
 #                                 if not firstDuplicate:
 #                                     firstDuplicate = True
 #                                     self.fileOps.createDirectoryIfNotExisting(self.folderForDuplicateFiles)
-#                             atLeastOneDuplicateFound = True
+#                             self.atLeastOneDuplicateFound = True
 #                             duplicateOrdinal = duplicateOrdinal + 1
 #                             self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal)
 #                             self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
 #                 self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
-#         if not atLeastOneDuplicateFound:
+#         if not self.atLeastOneDuplicateFound:
 #             self.report = ["No duplicates found"]
 #     
 #     def __isSupportedFileExtension__(self, folderOrdinalToCompare, fileOrdinalToCompare):
@@ -426,7 +426,8 @@ class FileSearchDeleteSpecifiedFiles:
 #     def generateReport(self):
 #         for aLine in self.report:
 #             print(aLine)
-#         reportFilename = self.fileOps.writeReportToFile(self.folderForDuplicateImages, self.report)
+#         if self.atLeastOneDuplicateFound:
+#           reportFilename = self.fileOps.writeReportToFile(self.folderForDuplicateImages, self.report)
 #         return reportFilename
 #     
 #     def __moveFileToSeparateFolder__(self, folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal):
