@@ -86,15 +86,20 @@ class FileOperations:
         filename, fileExtension = os.path.splitext(filenameOrPathWithFilename)
         return filename, fileExtension
     
-    def deleteFile(self, folder, file):
-        os.remove(folder + file) #TODO: check if file exists before deleting
+    def deleteFile(self, filenameWithPath):
+        os.remove(filenameWithPath) #TODO: check if file exists before deleting
         
-    def writeLinesToFile(self, pathAndFilename, report):
-        fileHandle = open(pathAndFilename, 'w')
+    def writeLinesToFile(self, filenameWithPath, report):
+        fileHandle = open(filenameWithPath, 'w')
         for line in report:
             fileHandle.write(line)
             fileHandle.write("\n")
         fileHandle.close()
+        
+    def readFromFile(self, filenameWithPath):
+        with open(filenameWithPath) as f:
+            lines = f.read().splitlines()#TODO: try catch
+        return lines              
     
     def createDirectoryIfNotExisting(self, folder):
         if not os.path.exists(folder): 
@@ -259,15 +264,15 @@ class YesNoMenu:
         
 #-----------------------------------------------             
 #-----------------------------------------------
-#-------------------- REPORTS ------------------
+#---------------- HELPER CLASSES  --------------
 #-----------------------------------------------
 #-----------------------------------------------        
 class Reports:
-    def __init__(self, folderToStoreReport):
+    def __init__(self, folderToStore):
         self.fileOps = FileOperations()
-        self.folderToStoreReport = folderToStoreReport
+        self.folderToStore = folderToStore
         self.report = []
-        self.reportPathAndFile = 'None'
+        self.reportFilenameWithPath = 'None'
     
     def add(self, text):
         self.report.append(text)
@@ -276,13 +281,37 @@ class Reports:
         for aLine in self.report:
             print(aLine)
         if shouldWriteReportToFile:
-            self.reportPathAndFile = self.folderToStoreReport + "Report_" + str(datetime.datetime.now()) + ".txt"
-            self.fileOps.writeLinesToFile(self.reportPathAndFile, self.report)
-        sg.popup('Completed. Report: ' + self.reportPathAndFile, keep_on_top=True)            
+            self.reportFilenameWithPath = self.folderToStore + "Report_" + str(datetime.datetime.now()) + ".txt"
+            self.fileOps.writeLinesToFile(self.reportFilenameWithPath, self.report)
+        sg.popup('Completed. Report: ' + self.reportFilenameWithPath, keep_on_top=True)            
         
-#     def getReportPathAndFilename(self):                
-#         return self.reportPathAndFile
-    
+
+class Undo:
+    def __init__(self, folderToStore):
+        self.whatToUndo = []
+        self.separator = ','
+        self.folderToStore = folderToStore
+                
+    def add(self, oldPath, oldFilename, currentPath, currentFilename):
+        data = oldPath + self.separator + oldFilename + self.separator + currentPath + self.separator + currentFilename
+        self.whatToUndo.append(data)
+        
+    def generateUndoFile(self):
+        self.fileOps = FileOperations()
+        self.undoFilenameWithPath = self.folderToStore + "ToUndoTheDuplicateFileMove_" + str(datetime.datetime.now()) + ".undo"
+        self.fileOps.writeLinesToFile(self.undoFilenameWithPath, self.report)        
+
+    def performUndo(self, undoFilenameWithPath):
+        lines = self.fileOps.readFromFile(undoFilenameWithPath)
+        for line in lines:
+            line = line.split(self.separator)
+            i = 0
+            oldPath = line[i]; i = i + 1
+            oldFilename = line[i]; i = i + 1
+            currentPath = line[i]; i = i + 1
+            currentFilename = line[i]; i = i + 1
+            self.fileOps.moveFile(self, currentPath, currentFilename, oldPath, oldFilename)
+        self.fileOps.deleteFile(undoFilenameWithPath)
     
 #-----------------------------------------------             
 #-----------------------------------------------
@@ -492,7 +521,7 @@ class FileSearchDeleteSpecifiedFiles:
         #TODO: if delete not possible, mention it in the generated report and don't make atLeastOneFileFound true
         folder = self.folderPaths[folderOrdinal]
         file = self.filesInFolder[folderOrdinal][fileOrdinal]        
-        self.fileOps.deleteFile(folder, file)
+        self.fileOps.deleteFile(folder + file)
         reportString = "Deleted " + folder + file
         self.reports.add(reportString)
         self.atLeastOneFileFound = True
