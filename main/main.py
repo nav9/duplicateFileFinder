@@ -35,7 +35,7 @@ class GlobalConstants:
     YES_BUTTON = 'Yes'
     NO_BUTTON = 'No'
     alreadyProcessedFile = "."
-    supportedImageFormats = ['jpg', 'jpeg', 'png'] #let all extensions mentioned here be in lower case
+    supportedImageFormats = ['jpg', 'jpeg', 'png', 'webp'] #let all extensions mentioned here be in lower case. More can be added after testing.
 
 class FileSearchModes:
     choice_None = 'Exit'
