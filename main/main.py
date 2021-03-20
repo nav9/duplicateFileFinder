@@ -63,14 +63,12 @@ class FileOperations:
     def deleteFile(self, folder, file):
         os.remove(folder + file) #TODO: check if file exists before deleting
         
-    def writeReportToFile(self, path, report):
-        fileName = path + "Report_" + str(datetime.datetime.now()) + ".txt"
-        fileHandle = open(fileName, 'w')
+    def writeLinesToFile(self, pathAndFilename, report):
+        fileHandle = open(pathAndFilename, 'w')
         for line in report:
             fileHandle.write(line)
             fileHandle.write("\n")
         fileHandle.close()
-        return fileName
     
     def createDirectoryIfNotExisting(self, folder):
         if not os.path.exists(folder): 
@@ -239,6 +237,25 @@ class YesNoMenu:
             answer = True
         return answer
         
+        
+class Reports:
+    def __init__(self, folderToStoreReport):
+        self.fileOps = FileOperations()
+        self.folderToStoreReport = folderToStoreReport
+        self.report = []
+    
+    def add(self, text):
+        self.report.append(text)
+        
+    def generateReport(self, shouldWriteReportToFile = False):
+        pathAndFilename = None
+        for aLine in self.report:
+            print(aLine)
+        if shouldWriteReportToFile:
+            pathAndFilename = self.folderToStoreReport + "Report_" + str(datetime.datetime.now()) + ".txt"
+            self.fileOps.writeLinesToFile(pathAndFilename, self.report)
+        return pathAndFilename                
+    
     
 class FileDuplicateSearchBinaryMode:
     def __init__(self, foldername):
@@ -247,12 +264,13 @@ class FileDuplicateSearchBinaryMode:
         self.baseFolder = foldername
         self.folderForDuplicateFiles = self.baseFolder + GlobalConstants.duplicateFilesFolder        
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
-        self.report = ['Searching in : ' + self.baseFolder]
-        self.report.append('Duplicates will be stored in: ' + self.folderForDuplicateFiles)
+        self.reports = Reports(self.folderForDuplicateFiles)
+        self.reports.add('Searching in : ' + self.baseFolder)
+        self.reports.add('Duplicates will be stored in: ' + self.folderForDuplicateFiles)
+        self.atLeastOneDuplicateFound = False
     
     def search(self):        
-        firstDuplicate = False
-        self.atLeastOneDuplicateFound = False
+        firstDuplicate = False        
         #---initiate search for duplicates
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
             filenames = self.filesInFolder[folderOrdinal]
@@ -295,14 +313,7 @@ class FileDuplicateSearchBinaryMode:
                                 self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
                 self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
         if not self.atLeastOneDuplicateFound:
-            self.report.append("No duplicates found")
-    
-    def generateReport(self):
-        for aLine in self.report:
-            print(aLine)
-        if self.atLeastOneDuplicateFound:
-            reportFilename = self.fileOps.writeReportToFile(self.folderForDuplicateFiles, self.report)
-        return reportFilename
+            self.reports.add("No duplicates found")
     
     def __moveFileToSeparateFolder__(self, folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal):
         #Note: Empty files will be identified as duplicates of other empty files. It's normal.  
@@ -316,12 +327,13 @@ class FileDuplicateSearchBinaryMode:
         #TODO: can have a try catch to check if directory exists, before doing the move (in case the directory gets deleted during runtime)
         self.fileOps.moveFile(dupFolder, dupFile, self.folderForDuplicateFiles, fileName+"_"+str(duplicateOrdinal)+fileExtension) 
         reportString = folder + file + "'s duplicate: " + dupFolder + dupFile + " is renamed and moved to " + self.folderForDuplicateFiles
-        self.report.append(reportString)
+        self.reports.add(reportString)
     
     def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
         self.filesInFolder[folderOrdinal][fileOrdinal] = GlobalConstants.alreadyProcessedFile            
     
-                      
+    def shouldReportBeWrittenToFile(self):
+        return self.atLeastOneDuplicateFound                      
     
 
 class FileSearchDeleteSpecifiedFiles:
@@ -329,11 +341,12 @@ class FileSearchDeleteSpecifiedFiles:
         self.fileOps = FileOperations()
         self.baseFolder = foldername
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
-        self.report = ['Searching in: '+self.baseFolder]
+        self.reports = Reports(self.baseFolder)
+        self.reports.add('Searching in: '+self.baseFolder)
         self.atLeastOneFileFound = False
     
     def searchAndDestroy(self, filesToDelete, caseSensitive):
-        self.report.append("Files to delete: " + str(filesToDelete))
+        self.reports.add("Files to delete: " + str(filesToDelete))
         
         #---initiate search for duplicates
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
@@ -348,13 +361,7 @@ class FileSearchDeleteSpecifiedFiles:
                 if filename in filesToDelete:
                     self.__deleteFile__(folderOrdinal, fileOrdinal)
         if not self.atLeastOneFileFound:
-            self.report.append("No files found")
-    
-    def generateReport(self):
-        for aLine in self.report:
-            print(aLine)
-        reportFilename = self.fileOps.writeReportToFile(self.baseFolder, self.report)
-        return reportFilename
+            self.reports.add("No files found")
     
     def __deleteFile__(self, folderOrdinal, fileOrdinal):  
         #TODO: if delete not possible, mention it in the generated report and don't make atLeastOneFileFound true
@@ -362,10 +369,11 @@ class FileSearchDeleteSpecifiedFiles:
         file = self.filesInFolder[folderOrdinal][fileOrdinal]        
         self.fileOps.deleteFile(folder, file)
         reportString = "Deleted " + folder + file
-        self.report.append(reportString)
+        self.reports.add(reportString)
         self.atLeastOneFileFound = True
         
-
+    def shouldReportBeWrittenToFile(self):
+        return self.atLeastOneFileFound
 
 #-----------------------------------------------             
 #-----------------------------------------------
@@ -393,8 +401,8 @@ if __name__ == '__main__':
         #---search for duplicates
         fileSearcher = FileDuplicateSearchBinaryMode(folderChosen)
         fileSearcher.search()
-        reportFilename = fileSearcher.generateReport()
-        sg.popup('Completed. Report is here: ' + reportFilename, keep_on_top=True)
+        pathAndFilename = fileSearcher.generateReport(fileSearcher.shouldReportBeWrittenToFile())
+        sg.popup('Completed. Report is here: ' + pathAndFilename, keep_on_top=True)
     
     #---proceed with image search menu
     """ Image search is useful in cases where for example, an image is in jpg format and the same image is also present in png format and you want to delete one of the duplicates. It can also detect images that are approximately similar """
@@ -432,8 +440,8 @@ if __name__ == '__main__':
         #---search and destroy
         fileDeleter = FileSearchDeleteSpecifiedFiles(folderChosen)
         fileDeleter.searchAndDestroy(filesToDelete, caseSensitive)
-        reportFilename = fileDeleter.generateReport()
-        sg.popup('Completed. Report is here: ' + reportFilename, keep_on_top=True)
+        pathAndFilename = fileDeleter.generateReport(fileDeleter.shouldReportBeWrittenToFile())
+        sg.popup('Completed. Report is here: ' + pathAndFilename, keep_on_top=True)
     
     print('Program ended')
     
