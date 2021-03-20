@@ -9,6 +9,8 @@ import PySimpleGUI as sg
 import os
 import shutil #for moving file
 import datetime
+from PIL import Image
+import imagehash
 #import filetype
 #import Image
 
@@ -17,6 +19,7 @@ import datetime
 #TODO: Use a CI to automatically run tests and to use pyinstaller to generate an installer file
 #TODO: Add an option to undo the duplicate file move
 #TODO: Add a progress bar and also output progress percentage with current time to command prompt.
+#TODO: If there are too many files, a cache can be activated to store details of files being searched, to avoid extra computation during comparison
 
 #-----------------------------------------------             
 #-----------------------------------------------
@@ -32,6 +35,7 @@ class GlobalConstants:
     YES_BUTTON = 'Yes'
     NO_BUTTON = 'No'
     alreadyProcessedFile = "."
+    supportedImageFormats = ['jpg', 'jpeg', 'png'] #let all extensions mentioned here be in lower case
 
 class FileSearchModes:
     choice_None = 'Exit'
@@ -359,9 +363,102 @@ class FileDuplicateSearchBinaryMode:
     
     def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
         self.filesInFolder[folderOrdinal][fileOrdinal] = GlobalConstants.alreadyProcessedFile            
-     
-#     def getReportPathAndFilename(self):
-#         return self.reports.getReportPathAndFilename()    
+
+class ImageHashComparison:
+    def __init__(self):
+        self.hash_size = 8 #default
+    
+    def compareIfExactlySame(self, image, imageToCompare):
+        hash1 = imagehash.average_hash(Image.open(image), self.hash_size)
+        hash2 = imagehash.average_hash(Image.open(imageToCompare), self.hash_size)
+#         print('Image1:', image)
+#         print('Image2:', imageToCompare)
+#         print("Hashes: ",hash1, hash2)
+#         print('-----------------------')
+        return hash1 == hash2
+    
+class ImageDuplicateSearch:
+    def __init__(self, foldername):
+        self.fileOps = FileOperations()
+        self.baseFolder = foldername
+        self.folderForDuplicateFiles = self.baseFolder + GlobalConstants.duplicateImagesFolder        
+        self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
+        self.reports = Reports(self.folderForDuplicateFiles)
+        self.reports.add('Searching in : ' + self.baseFolder)
+        self.reports.add('Duplicates will be stored in: ' + self.folderForDuplicateFiles)
+        self.atLeastOneDuplicateFound = False
+        self.imageComparison = ImageHashComparison()
+    
+    def search(self):        
+        firstDuplicate = False        
+        #---initiate search for duplicates
+        for folderOrdinal in range(len(self.folderPaths)):#for each folder
+            filenames = self.filesInFolder[folderOrdinal]
+            path = self.folderPaths[folderOrdinal]
+            if path == self.folderForDuplicateFiles:#don't search an existing duplicates folder
+                continue
+            print('Searching in ', path)                
+            for fileOrdinal in range(len(filenames)):#for each file in the folder
+                duplicateOrdinal = 0
+                #filesize = self.fileSizes[folderOrdinal][fileOrdinal]
+                filename = self.filesInFolder[folderOrdinal][fileOrdinal]
+                if filename == GlobalConstants.alreadyProcessedFile:
+                    continue
+                #---compare with all files
+                for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder
+                    filenamesToCompare = self.filesInFolder[folderOrdinalToCompare]
+                    pathToCompare = self.folderPaths[folderOrdinalToCompare] 
+                    if pathToCompare == self.folderForDuplicateFiles:#don't search an existing duplicates folder
+                        continue
+                    print('Comparing in ', pathToCompare)                        
+                    for fileOrdinalToCompare in range(len(filenamesToCompare)):#for each file in the folder
+                        filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
+                        if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
+                            continue
+                        if filenameToCompare == GlobalConstants.alreadyProcessedFile:
+                            continue
+                        _, fileExtension = os.path.splitext(filenameToCompare)
+                        if len(fileExtension) == 0:
+                            self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
+                            continue
+                        else:
+                            fileExtension = fileExtension[1:]#ignores the dot in '.jpg'
+                        if fileExtension.lower() not in GlobalConstants.supportedImageFormats:#file is not an image or is not a supported image format
+                            self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
+                            #print('already processed')
+                            continue                                                                                   
+                        #---now compare
+                        filesAreSame = self.imageComparison.compareIfExactlySame(path + filename, pathToCompare + filenameToCompare)
+                        if filesAreSame:
+                            if not firstDuplicate:
+                                firstDuplicate = True
+                                self.fileOps.createDirectoryIfNotExisting(self.folderForDuplicateFiles)
+                            self.atLeastOneDuplicateFound = True
+                            duplicateOrdinal = duplicateOrdinal + 1
+                            self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal)
+                            self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
+            self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
+        if not self.atLeastOneDuplicateFound:
+            self.reports.add("No duplicates found")
+        self.reports.generateReport(self.atLeastOneDuplicateFound)
+    
+    def __moveFileToSeparateFolder__(self, folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal):
+        #Note: Empty files will be identified as duplicates of other empty files. It's normal.  
+        #TODO: if move not possible, copy and mention any move issues in the generated report
+        folder = self.folderPaths[folderOrdinal]
+        file = self.filesInFolder[folderOrdinal][fileOrdinal]        
+        dupFolder = self.folderPaths[folderOrdinalToCompare]
+        dupFile = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
+        #TODO: check if string length is appropriate for the filesystem        
+        fileName, fileExtension = self.fileOps.getFilenameAndExtension(file)
+        #TODO: can have a try catch to check if directory exists, before doing the move (in case the directory gets deleted during runtime)
+        self.fileOps.moveFile(dupFolder, dupFile, self.folderForDuplicateFiles, fileName+"_"+str(duplicateOrdinal)+fileExtension) 
+        reportString = folder + file + "'s duplicate: " + dupFolder + dupFile + " is renamed and moved to " + self.folderForDuplicateFiles
+        self.reports.add(reportString)
+    
+    def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
+        self.filesInFolder[folderOrdinal][fileOrdinal] = GlobalConstants.alreadyProcessedFile 
+        
 
 class FileSearchDeleteSpecifiedFiles:
     def __init__(self, foldername):
@@ -399,9 +496,6 @@ class FileSearchDeleteSpecifiedFiles:
         reportString = "Deleted " + folder + file
         self.reports.add(reportString)
         self.atLeastOneFileFound = True
-        
-#     def getReportPathAndFilename(self):
-#         return self.reports.getReportPathAndFilename()
     
 
 #-----------------------------------------------             
@@ -411,15 +505,19 @@ class FileSearchDeleteSpecifiedFiles:
 #-----------------------------------------------
 if __name__ == '__main__':
     sg.theme('Dark grey 13')  # please make your creations colorful
-    #---choosing to do a file or image search
+    #-------------------------------------------------------------------------
+    #--- main menu for choosing which operation to perform
+    #-------------------------------------------------------------------------
     searchMethod = DropdownChoicesMenu()
     displayText = ['What kind of operation do you want to do?']
     dropdownOptions = [FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels, FileSearchModes.choice_residualFiles]
-    defaultDropDownOption = FileSearchModes.choice_fileBinary
+    defaultDropDownOption = FileSearchModes.choice_imagePixels
     searchMethod.showUserTheMenu(displayText, dropdownOptions, defaultDropDownOption)
     userChoice = searchMethod.getUserChoice()
     
+    #-------------------------------------------------------------------------
     #---proceed with file duplicate search menu
+    #-------------------------------------------------------------------------
     if userChoice == FileSearchModes.choice_fileBinary:
         #---get folder name
         topText = ['Which folder do you want to search in? ']        
@@ -431,18 +529,29 @@ if __name__ == '__main__':
         fileSearcher = FileDuplicateSearchBinaryMode(folderChosen)
         fileSearcher.search()
     
+    #-------------------------------------------------------------------------
     #---proceed with image search menu
+    #-------------------------------------------------------------------------
     """ Image search is useful in cases where for example, an image is in jpg format and the same image is also present in png format and you want to delete one of the duplicates. It can also detect images that are approximately similar """
     if userChoice == FileSearchModes.choice_imagePixels:
+        #TODO: choice to retain larger or smaller image when duplicate found
+        #TODO: choice to search for partially similar files
+        #TODO: choice for larger number for hash signature
+        #TODO: User should specify priority of image-type to retain. Eg. If a webp duplicate of jpg is found, should webp be retained or jpg?
+
         #---get folder name
-        topText = ['Which folder do you want to search in? ']        
-        bottomText = ['Image type does not matter. Search is done using image pixels. This', 'program will move duplicates into a separate, newly created folder']        
+        topText = ['Which folder do you want to search in? ', 'Images are matched irrespective of dimension or image format']        
+        bottomText = ['Duplicate files are assumed to be inside the folder you choose. This', 'program will move all duplicates into a separate, newly created folder']        
         whichFolder = FolderChoiceMenu()
         whichFolder.showUserTheMenu(topText, bottomText)
         folderChosen = whichFolder.getUserChoice()
-        #TODO: User should specify priority of image-type to retain. Eg. If a webp duplicate of jpg is found, should webp be retained or jpg?
-    
+        #---search for duplicates
+        fileSearcher = ImageDuplicateSearch(folderChosen)
+        fileSearcher.search()        
+#         
+    #-------------------------------------------------------------------------
     #---specify what file to remove from folder and subfolders
+    #-------------------------------------------------------------------------
     if userChoice == FileSearchModes.choice_residualFiles:
         #---get filenames
         topText = ['Which files do you want to get rid of?', '(menus for case sensitivity and folder will be presented soon)']
