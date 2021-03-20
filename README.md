@@ -8,7 +8,10 @@
 
     
 # To run the program  
-Simply run the main file as:  
+First install imagehash, using:  
+pip3 install imagehash  
+  
+Then simply run the main file as:  
 python3 main.py  
   
 # TODO

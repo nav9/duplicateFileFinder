@@ -89,30 +89,51 @@ class FileOperations:
     def folderSlash(self, folderName):
         if folderName.endswith('/') == False: 
             folderName = folderName + '/' 
-        return folderName    
+        return folderName   
+    
+    def compareEntireFiles(self, filename1, filename2):
+        with open(filename1, 'rb') as filePointer1, open(filename2, 'rb') as filePointer2:
+            while True:
+                chunk1 = filePointer1.read(self.CHUNK_SIZE)#TODO: try catch
+                chunk2 = filePointer2.read(self.CHUNK_SIZE)
+                if chunk1 != chunk2:
+                    return False
+                if not chunk1:#if chunk is of zero bytes (nothing more to read from file), return True because chunk2 will also be zero. If it wasn't zero, the previous if would've been False
+                    return True       
 
 class FileSearchModes:
     choice_None = 'Exit'
-    choice_fileBinary = 'Duplicate files segregation'
-    #choice_imagePixels = 'Duplicate images (pixel search)'    
+    choice_fileBinary = 'Duplicate file segregation'
+    choice_imagePixels = 'Duplicate image segregation'    
     choice_residualFiles = 'Delete files (like Thumbs.db etc.)'
     
-class FirstChoiceMenu:
+class DropdownChoicesMenu:
     def __init__(self):
         self.event = None
         self.values = None
-        self.horizontalSepLen = 35       
+        self.horizontalSepLen = 35 #length of a line that separates the dropdown from the Ok and Cancel buttons. The line was introduced to not have the widgets too close to each other (aesthetics). 
+        
+    def setHorizontalSeparationLengthTo(self, value):
+        #If this value ever needs to be set, it has to be called immediately after the class is initialized, and before calling any other function of this class
+        self.horizontalSepLen = value   
     
-    def showUserTheMenu(self):
-        #---choose mode of running        
-        layout = [
-                    [sg.Text('What kind of operation do you want to do?')],
-                    #[sg.Combo([FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels, FileSearchModes.choice_residualFiles], default_value=FileSearchModes.choice_residualFiles)],
-                    [sg.Combo([FileSearchModes.choice_fileBinary, FileSearchModes.choice_residualFiles], default_value=FileSearchModes.choice_fileBinary)],        
-                    [sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')],
-                    [sg.Button(GlobalConstants.EVENT_CANCEL), sg.OK()]
-                 ]
-        window = sg.Window('', layout, element_justification='right', grab_anywhere=True)    
+    def showUserTheMenu(self, displayText, dropdownOptions, defaultDropDownOption):
+        #---choose mode of running    
+        layout = []
+        for text in displayText:
+            layout.append([sg.Text(text)])
+        layout.append([sg.Combo(dropdownOptions, default_value=defaultDropDownOption)])
+        layout.append([sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')])
+        layout.append([sg.Button(GlobalConstants.EVENT_CANCEL), sg.OK()])
+        
+#         layout = [
+#                     [sg.Text('What kind of operation do you want to do?')],
+#                     #[sg.Combo([FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels, FileSearchModes.choice_residualFiles], default_value=FileSearchModes.choice_residualFiles)],
+#                     [sg.Combo([FileSearchModes.choice_fileBinary, FileSearchModes.choice_residualFiles], default_value=FileSearchModes.choice_fileBinary)],        
+#                     [sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')],
+#                     [sg.Button(GlobalConstants.EVENT_CANCEL), sg.OK()]
+#                  ]
+        window = sg.Window('', layout, element_justification='right', grab_anywhere=True) #The justification was kept "right" because the user clicks the arrow of the dropdown on the right side and since the OK/Cancel buttons were usually on the left side, it was a pain to have to drag the mouse pointer all the way to the left. Since I couldn't find a way to justify the buttons to the right, I had to justify all elements to the right. The better way is to justify the text to the left and justify the buttons to the right. If PySimpleGUI is improved to support this, a better justification can be implemented in this program.  
         self.event, self.values = window.read()     
         window.close()
         
@@ -179,15 +200,7 @@ class StringInputMenu:
             layout.append([sg.Text(s, text_color='grey', justification='left')])        
         layout.append([sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')])
         layout.append([sg.Button(GlobalConstants.EVENT_CANCEL), sg.Button('Ok')])
-                
-#         layout = [
-#                     [sg.Text('Which files do you want to get rid of? (names are case sensitive) ', justification='left')],
-#                     [sg.InputText('')],        
-#                     [sg.Text('For example, you could type them as comma separated file names: ', text_color='grey', justification='left')],
-#                     [sg.Text('Thumbs.db, Desktop.ini', text_color='grey', justification='left')],                    
-#                     [sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')],
-#                     [sg.Button(GlobalConstants.EVENT_CANCEL), sg.Button('Ok')] #[sg.Cancel(), sg.OK()]
-#                   ]
+        
         window = sg.Window('', layout, grab_anywhere=False, element_justification='right')    
         self.event, self.values = window.read()        
         window.close()
@@ -271,7 +284,7 @@ class FileDuplicateSearchBinaryMode:
                         if filesize == filesizeToCompare:#initial match found based on size
                                                                                    
                             #---now compare based on file contents
-                            filesAreSame = self.__compareEntireFiles__(path + filename, pathToCompare + filenameToCompare)
+                            filesAreSame = self.fileOps.compareEntireFiles(path + filename, pathToCompare + filenameToCompare)
                             if filesAreSame:
                                 if not firstDuplicate:
                                     firstDuplicate = True
@@ -308,15 +321,7 @@ class FileDuplicateSearchBinaryMode:
     def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
         self.filesInFolder[folderOrdinal][fileOrdinal] = GlobalConstants.alreadyProcessedFile            
     
-    def __compareEntireFiles__(self, filename1, filename2):
-        with open(filename1, 'rb') as filePointer1, open(filename2, 'rb') as filePointer2:
-            while True:
-                chunk1 = filePointer1.read(self.CHUNK_SIZE)#TODO: try catch
-                chunk2 = filePointer2.read(self.CHUNK_SIZE)
-                if chunk1 != chunk2:
-                    return False
-                if not chunk1:#if chunk is of zero bytes (nothing more to read from file), return True because chunk2 will also be zero. If it wasn't zero, the previous if would've been False
-                    return True                        
+                      
     
 
 class FileSearchDeleteSpecifiedFiles:
@@ -361,116 +366,6 @@ class FileSearchDeleteSpecifiedFiles:
         self.atLeastOneFileFound = True
         
 
-# class FileSearchImageMode:
-#     def __init__(self, foldername):        
-#         self.fileOps = FileOperations()
-#         self.baseFolder = foldername
-#         self.supportedFileExtensions = ['jpg', 'png', 'gif', 'webp']
-#         self.folderForDuplicateImages = self.baseFolder + GlobalConstants.duplicateImagesFolder
-#         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
-#         self.report = ['Duplicates will be stored in: '+self.folderForDuplicateFiles]
-#     
-#     def search(self):
-#         firstDuplicate = False
-#         self.atLeastOneDuplicateFound = False
-#         #---initiate search for duplicates
-#         for folderOrdinal in range(len(self.folderPaths)):#for each folder
-#             filenames = self.filesInFolder[folderOrdinal]
-#             path = self.folderPaths[folderOrdinal]
-#             if path == self.folderForDuplicateImages:#don't search an existing duplicates folder
-#                 continue
-#             for fileOrdinal in range(len(filenames)):#for each file in the folder
-#                 duplicateOrdinal = 0
-#                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
-#                 if filename == GlobalConstants.alreadyProcessedFile:
-#                     continue
-#                 if not self.__isSupportedFileExtension__(folderOrdinal, fileOrdinal):
-#                     self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal) 
-#                     continue                 
-#                 #---compare with all files
-#                 for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder
-#                     filenamesToCompare = self.filesInFolder[folderOrdinalToCompare]
-#                     pathToCompare = self.folderPaths[folderOrdinalToCompare] 
-#                     if pathToCompare == self.folderForDuplicateImages:#don't search an existing duplicates folder
-#                         continue                                                                 #---check based on file extension                   
-#                     for fileOrdinalToCompare in range(len(filenamesToCompare)):#for each file in the folder
-#                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
-#                         if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
-#                             continue
-#                         if filenameToCompare == GlobalConstants.alreadyProcessedFile:
-#                             continue
-#                         #---check based on file extension
-#                         if not self.__isSupportedFileExtension__(folderOrdinalToCompare, fileOrdinalToCompare):
-#                             self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare) 
-#                             continue                                                                      
-#                         #---now compare based on file contents
-#                         filesAreSame = self.__compareEntireImage__(path + filename, pathToCompare + filenameToCompare)
-#                         if filesAreSame:
-#                                 if not firstDuplicate:
-#                                     firstDuplicate = True
-#                                     self.fileOps.createDirectoryIfNotExisting(self.folderForDuplicateFiles)
-#                             self.atLeastOneDuplicateFound = True
-#                             duplicateOrdinal = duplicateOrdinal + 1
-#                             self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal)
-#                             self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
-#                 self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
-#         if not self.atLeastOneDuplicateFound:
-#             self.report = ["No duplicates found"]
-#     
-#     def __isSupportedFileExtension__(self, folderOrdinalToCompare, fileOrdinalToCompare):
-#         folder = self.folderPaths[folderOrdinalToCompare]
-#         file = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]        
-#         filename, fileExtension = os.path.splitext(folder + file)
-#         return fileExtension in self.supportedFileExtensions:
-#     
-#     def generateReport(self):
-#         for aLine in self.report:
-#             print(aLine)
-#         if self.atLeastOneDuplicateFound:
-#           reportFilename = self.fileOps.writeReportToFile(self.folderForDuplicateImages, self.report)
-#         return reportFilename
-#     
-#     def __moveFileToSeparateFolder__(self, folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal):
-#         #TODO: if move not possible, copy and mention any move issues in the generated report
-#         folder = self.folderPaths[folderOrdinal]
-#         file = self.filesInFolder[folderOrdinal][fileOrdinal]        
-#         dupFolder = self.folderPaths[folderOrdinalToCompare]
-#         dupFile = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
-#         self.fileOps.moveFile(dupFolder, dupFile, self.folderForDuplicateImages, file+"_"+str(duplicateOrdinal)) #TODO: can have a try catch to check if directory exists, before doing the move
-#         reportString = folder + file + "'s duplicate: " + dupFolder + dupFile + " is renamed and moved to " + self.folderForDuplicateImages
-#         self.report.append(reportString)
-#     
-#     def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
-#         self.filesInFolder[folderOrdinal][fileOrdinal] = GlobalConstants.alreadyProcessedFile            
-#     
-#     def __compareEntireImage__(self, filename1, filename2):
-#         imagesSame = True        
-#         image1 = Image.open(filename1)
-#         image1 = image1.convert('RGB')
-#         width1 = image1.size[0]
-#         height1 = image1.size[1]
-#         if width1 == 0 or height1 == 0:
-#             imagesSame = False
-#         else:
-#             image2 = Image.open(filename2)
-#             image2 = image2.convert('RGB')
-#             width2 = image2.size[0]
-#             height2 = image2.size[1]   
-#             if width2 == 0 or height2 == 0 or width1 != width2 or height1 != height2:
-#                 imagesSame = False   
-#             else:                                            
-#                 #---compare pixels
-#                 for y in range(0, height1):
-#                     for x in range(0, width1):
-#                         r1, g1, b1 = image1.getpixel((x, y))
-#                         r2, g2, b2 = image2.getpixel((x, y))        
-#                         if r1 != r2 or g1 != g2 or b1 != b2:#TODO: this has to be generalized a bit due to conversion losses
-#                             imagesSame = False
-#                             break
-#                     if not imagesSame:
-#                         break
-#         return imagesSame
-
 
 #-----------------------------------------------             
 #-----------------------------------------------
@@ -480,8 +375,11 @@ class FileSearchDeleteSpecifiedFiles:
 if __name__ == '__main__':
     sg.theme('Dark grey 13')  # please make your creations colorful
     #---choosing to do a file or image search
-    searchMethod = FirstChoiceMenu()
-    searchMethod.showUserTheMenu()
+    searchMethod = DropdownChoicesMenu()
+    displayText = ['What kind of operation do you want to do?']
+    dropdownOptions = [FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels, FileSearchModes.choice_residualFiles]
+    defaultDropDownOption = FileSearchModes.choice_fileBinary
+    searchMethod.showUserTheMenu(displayText, dropdownOptions, defaultDropDownOption)
     userChoice = searchMethod.getUserChoice()
     
     #---proceed with file duplicate search menu
@@ -498,21 +396,21 @@ if __name__ == '__main__':
         reportFilename = fileSearcher.generateReport()
         sg.popup('Completed. Report is here: ' + reportFilename, keep_on_top=True)
     
-#     #---proceed with image search menu
-#     """ Image search is useful in cases where for example, an image is in jpg format and the same image is also present in png or webp format and you want to delete one of the duplicates """
-#     if userChoice == FileSearchModes.choice_imagePixels:
-#         #---get folder name
-#         topText = ['Which folder do you want to search in? ']        
-#         bottomText = ['Image type does not matter. Search is done using image pixels. This', 'program will move duplicates into a separate, newly created folder']        
-#         whichFolder = FolderChoiceMenu()
-#         whichFolder.showUserTheMenu(topText, bottomText)
-#         folderChosen = whichFolder.getUserChoice()
-#         #TODO: User should specify priority of image-type to retain. Eg. If a webp duplicate of jpg is found, should webp be retained or jpg?
+    #---proceed with image search menu
+    """ Image search is useful in cases where for example, an image is in jpg format and the same image is also present in png format and you want to delete one of the duplicates. It can also detect images that are approximately similar """
+    if userChoice == FileSearchModes.choice_imagePixels:
+        #---get folder name
+        topText = ['Which folder do you want to search in? ']        
+        bottomText = ['Image type does not matter. Search is done using image pixels. This', 'program will move duplicates into a separate, newly created folder']        
+        whichFolder = FolderChoiceMenu()
+        whichFolder.showUserTheMenu(topText, bottomText)
+        folderChosen = whichFolder.getUserChoice()
+        #TODO: User should specify priority of image-type to retain. Eg. If a webp duplicate of jpg is found, should webp be retained or jpg?
     
     #---specify what file to remove from folder and subfolders
     if userChoice == FileSearchModes.choice_residualFiles:
         #---get filenames
-        topText = ['Which files do you want to get rid of? (names are case sensitive)']
+        topText = ['Which files do you want to get rid of? (names are case sensitive)', '(choice of folder will be presented in the next menu)']
         bottomText = ['For example, you could type them as comma separated file names: ', 'Thumbs.db, Desktop.ini'] 
         whichFiles = StringInputMenu() #get filename(s)
         whichFiles.showUserTheMenu(topText, bottomText)
