@@ -12,24 +12,46 @@ import datetime
 #import filetype
 #import Image
 
+#TODO: Use a logger instead of the current print output
 #TODO: create a memory of the last location that was searched, and show that as the default when doing a folder search
 #TODO: Use a CI to automatically run tests and to use pyinstaller to generate an installer file
 #TODO: Add an option to undo the duplicate file move
 #TODO: Add a progress bar and also output progress percentage with current time to command prompt.
+
+#-----------------------------------------------             
+#-----------------------------------------------
+#---------------- PARAMETERS -------------------
+#-----------------------------------------------
+#-----------------------------------------------
+
 class GlobalConstants:
     duplicateFilesFolder = "duplicateFilesFolder/"
-    #duplicateImagesFolder = "duplicateImagesFolder/"
+    duplicateImagesFolder = "duplicateImagesFolder/"
     EVENT_CANCEL = 'Cancel'
     EVENT_EXIT = 'Cancel'
     YES_BUTTON = 'Yes'
     NO_BUTTON = 'No'
     alreadyProcessedFile = "."
 
+class FileSearchModes:
+    choice_None = 'Exit'
+    choice_fileBinary = 'Duplicate file segregation'
+    choice_imagePixels = 'Duplicate image segregation'    
+    choice_residualFiles = 'Delete files (like Thumbs.db etc.)'
+    
+
+#-----------------------------------------------             
+#-----------------------------------------------
+#------------------ FILE OPS -------------------
+#-----------------------------------------------
+#-----------------------------------------------
+
 class FileOperations:
     def __init__(self):
         self.FULL_FOLDER_PATH = 0
         #self.SUBDIRECTORIES = 1
         self.FILES_IN_FOLDER = 2
+        self.CHUNK_SIZE_FOR_BINARY_FILE_COMPARISON = 8 * 1024     
     
     """ Get names of files in each folder and subfolder. Also get sizes of files """
     def getFileNamesOfFilesInAllFoldersAndSubfolders(self, folderToConsider): 
@@ -92,19 +114,19 @@ class FileOperations:
     def compareEntireFiles(self, filename1, filename2):
         with open(filename1, 'rb') as filePointer1, open(filename2, 'rb') as filePointer2:
             while True:
-                chunk1 = filePointer1.read(self.CHUNK_SIZE)#TODO: try catch
-                chunk2 = filePointer2.read(self.CHUNK_SIZE)
+                chunk1 = filePointer1.read(self.CHUNK_SIZE_FOR_BINARY_FILE_COMPARISON)#TODO: try catch
+                chunk2 = filePointer2.read(self.CHUNK_SIZE_FOR_BINARY_FILE_COMPARISON)
                 if chunk1 != chunk2:
                     return False
                 if not chunk1:#if chunk is of zero bytes (nothing more to read from file), return True because chunk2 will also be zero. If it wasn't zero, the previous if would've been False
                     return True       
 
-class FileSearchModes:
-    choice_None = 'Exit'
-    choice_fileBinary = 'Duplicate file segregation'
-    choice_imagePixels = 'Duplicate image segregation'    
-    choice_residualFiles = 'Delete files (like Thumbs.db etc.)'
     
+#-----------------------------------------------             
+#-----------------------------------------------
+#-------------------- MENUS --------------------
+#-----------------------------------------------
+#-----------------------------------------------    
 class DropdownChoicesMenu:
     def __init__(self):
         self.event = None
@@ -124,13 +146,6 @@ class DropdownChoicesMenu:
         layout.append([sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')])
         layout.append([sg.Button(GlobalConstants.EVENT_CANCEL), sg.OK()])
         
-#         layout = [
-#                     [sg.Text('What kind of operation do you want to do?')],
-#                     #[sg.Combo([FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels, FileSearchModes.choice_residualFiles], default_value=FileSearchModes.choice_residualFiles)],
-#                     [sg.Combo([FileSearchModes.choice_fileBinary, FileSearchModes.choice_residualFiles], default_value=FileSearchModes.choice_fileBinary)],        
-#                     [sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')],
-#                     [sg.Button(GlobalConstants.EVENT_CANCEL), sg.OK()]
-#                  ]
         window = sg.Window('', layout, element_justification='right', grab_anywhere=True) #The justification was kept "right" because the user clicks the arrow of the dropdown on the right side and since the OK/Cancel buttons were usually on the left side, it was a pain to have to drag the mouse pointer all the way to the left. Since I couldn't find a way to justify the buttons to the right, I had to justify all elements to the right. The better way is to justify the text to the left and justify the buttons to the right. If PySimpleGUI is improved to support this, a better justification can be implemented in this program.  
         self.event, self.values = window.read()     
         window.close()
@@ -238,28 +253,40 @@ class YesNoMenu:
         return answer
         
         
+#-----------------------------------------------             
+#-----------------------------------------------
+#-------------------- REPORTS ------------------
+#-----------------------------------------------
+#-----------------------------------------------        
 class Reports:
     def __init__(self, folderToStoreReport):
         self.fileOps = FileOperations()
         self.folderToStoreReport = folderToStoreReport
         self.report = []
+        self.reportPathAndFile = 'None'
     
     def add(self, text):
         self.report.append(text)
         
     def generateReport(self, shouldWriteReportToFile = False):
-        pathAndFilename = None
         for aLine in self.report:
             print(aLine)
         if shouldWriteReportToFile:
-            pathAndFilename = self.folderToStoreReport + "Report_" + str(datetime.datetime.now()) + ".txt"
-            self.fileOps.writeLinesToFile(pathAndFilename, self.report)
-        return pathAndFilename                
+            self.reportPathAndFile = self.folderToStoreReport + "Report_" + str(datetime.datetime.now()) + ".txt"
+            self.fileOps.writeLinesToFile(self.reportPathAndFile, self.report)
+        sg.popup('Completed. Report: ' + self.reportPathAndFile, keep_on_top=True)            
+        
+#     def getReportPathAndFilename(self):                
+#         return self.reportPathAndFile
     
     
+#-----------------------------------------------             
+#-----------------------------------------------
+#------------- PRIMARY OPERATIONS --------------
+#-----------------------------------------------
+#-----------------------------------------------    
 class FileDuplicateSearchBinaryMode:
     def __init__(self, foldername):
-        self.CHUNK_SIZE = 8 * 1024        
         self.fileOps = FileOperations()
         self.baseFolder = foldername
         self.folderForDuplicateFiles = self.baseFolder + GlobalConstants.duplicateFilesFolder        
@@ -314,6 +341,7 @@ class FileDuplicateSearchBinaryMode:
                 self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
         if not self.atLeastOneDuplicateFound:
             self.reports.add("No duplicates found")
+        self.reports.generateReport(self.atLeastOneDuplicateFound)
     
     def __moveFileToSeparateFolder__(self, folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal):
         #Note: Empty files will be identified as duplicates of other empty files. It's normal.  
@@ -331,10 +359,9 @@ class FileDuplicateSearchBinaryMode:
     
     def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
         self.filesInFolder[folderOrdinal][fileOrdinal] = GlobalConstants.alreadyProcessedFile            
-    
-    def shouldReportBeWrittenToFile(self):
-        return self.atLeastOneDuplicateFound                      
-    
+     
+#     def getReportPathAndFilename(self):
+#         return self.reports.getReportPathAndFilename()    
 
 class FileSearchDeleteSpecifiedFiles:
     def __init__(self, foldername):
@@ -362,6 +389,7 @@ class FileSearchDeleteSpecifiedFiles:
                     self.__deleteFile__(folderOrdinal, fileOrdinal)
         if not self.atLeastOneFileFound:
             self.reports.add("No files found")
+        self.reports.generateReport(self.atLeastOneFileFound)
     
     def __deleteFile__(self, folderOrdinal, fileOrdinal):  
         #TODO: if delete not possible, mention it in the generated report and don't make atLeastOneFileFound true
@@ -372,8 +400,9 @@ class FileSearchDeleteSpecifiedFiles:
         self.reports.add(reportString)
         self.atLeastOneFileFound = True
         
-    def shouldReportBeWrittenToFile(self):
-        return self.atLeastOneFileFound
+#     def getReportPathAndFilename(self):
+#         return self.reports.getReportPathAndFilename()
+    
 
 #-----------------------------------------------             
 #-----------------------------------------------
@@ -401,8 +430,6 @@ if __name__ == '__main__':
         #---search for duplicates
         fileSearcher = FileDuplicateSearchBinaryMode(folderChosen)
         fileSearcher.search()
-        pathAndFilename = fileSearcher.generateReport(fileSearcher.shouldReportBeWrittenToFile())
-        sg.popup('Completed. Report is here: ' + pathAndFilename, keep_on_top=True)
     
     #---proceed with image search menu
     """ Image search is useful in cases where for example, an image is in jpg format and the same image is also present in png format and you want to delete one of the duplicates. It can also detect images that are approximately similar """
@@ -418,7 +445,7 @@ if __name__ == '__main__':
     #---specify what file to remove from folder and subfolders
     if userChoice == FileSearchModes.choice_residualFiles:
         #---get filenames
-        topText = ['Which files do you want to get rid of? (names are case sensitive)', '(choice of folder will be presented in the next menu)']
+        topText = ['Which files do you want to get rid of?', '(menus for case sensitivity and folder will be presented soon)']
         bottomText = ['For example, you could type them as comma separated file names: ', 'Thumbs.db, Desktop.ini'] 
         whichFiles = StringInputMenu() #get filename(s)
         whichFiles.showUserTheMenu(topText, bottomText)
@@ -439,9 +466,7 @@ if __name__ == '__main__':
         #TODO: can have a confirmation dialog box for safety         
         #---search and destroy
         fileDeleter = FileSearchDeleteSpecifiedFiles(folderChosen)
-        fileDeleter.searchAndDestroy(filesToDelete, caseSensitive)
-        pathAndFilename = fileDeleter.generateReport(fileDeleter.shouldReportBeWrittenToFile())
-        sg.popup('Completed. Report is here: ' + pathAndFilename, keep_on_top=True)
+        fileDeleter.searchAndDestroy(filesToDelete, caseSensitive)        
     
     print('Program ended')
     
