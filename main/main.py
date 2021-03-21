@@ -42,6 +42,7 @@ class FileSearchModes:
     choice_fileBinary = 'Duplicate file segregation'
     choice_imagePixels = 'Duplicate image segregation'    
     choice_residualFiles = 'Delete files (like Thumbs.db etc.)'
+    choice_undoFileMove = 'Undo files that were moved and renamed'
     
 
 #-----------------------------------------------             
@@ -206,6 +207,36 @@ class FolderChoiceMenu:
 #             exit()    
         return retVal   
 
+class FileChoiceMenu:
+    def __init__(self):
+        self.event = None
+        self.values = None
+        self.horizontalSepLen = 35       
+    
+    def showUserTheMenu(self, topText, bottomText):
+        #---choose mode of running
+        layout = []
+        for s in topText:
+            layout.append([sg.Text(s, justification='left')])
+        layout.append([sg.Input(), sg.FileBrowse()])
+        for s in bottomText:
+            layout.append([sg.Text(s, text_color='grey', justification='left')])        
+        layout.append([sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')])
+        layout.append([sg.Button(GlobalConstants.EVENT_CANCEL), sg.Button('Ok')])
+        
+        window = sg.Window('', layout, grab_anywhere=False, element_justification='right')    
+        self.event, self.values = window.read()        
+        window.close()
+    
+    def getUserChoice(self):
+        fileChosen = None
+        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[0] == '':
+            #retVal = FileSearchModes.choice_None
+            exit()
+        else:
+            fileChosen = self.values[0]
+        return fileChosen  
+    
 class StringInputMenu:
     def __init__(self):
         self.event = None
@@ -287,32 +318,39 @@ class Reports:
         
 
 class Undo:
-    def __init__(self, folderToStore):
+    """ This class allows the creation of an undo file and allows using an existing undo file to undo the file operations that were performed earlier """
+    def __init__(self, folderToStore):#TODO: refactor to not require sending the folder name, coz when the class is instantiated for performing an undo, it's not necessary to specify a folder
         self.whatToUndo = []
         self.separator = ','
         self.folderToStore = folderToStore
-                
-    def add(self, oldPath, oldFilename, currentPath, currentFilename):
-        data = oldPath + self.separator + oldFilename + self.separator + currentPath + self.separator + currentFilename
+        self.fileOps = FileOperations()
+    
+    def add(self, oldPath, oldFilename, newPath, newFilename):
+        data = oldPath + self.separator + oldFilename + self.separator + newPath + self.separator + newFilename
         self.whatToUndo.append(data)
         
-    def generateUndoFile(self):
-        self.fileOps = FileOperations()
-        self.undoFilenameWithPath = self.folderToStore + "ToUndoTheDuplicateFileMove_" + str(datetime.datetime.now()) + ".undo"
+    def generateUndoFile(self):        
+        self.undoFilenameWithPath = self.folderToStore + "ToUndoTheFilesMoved_" + str(datetime.datetime.now()) + ".undo"
         self.fileOps.writeLinesToFile(self.undoFilenameWithPath, self.report)        
 
     def performUndo(self, undoFilenameWithPath):
+        numberOfUndos = 0
         lines = self.fileOps.readFromFile(undoFilenameWithPath)
-        for line in lines:
+        for line in lines:#TODO: check if each line is valid
             line = line.split(self.separator)
             i = 0
             oldPath = line[i]; i = i + 1
             oldFilename = line[i]; i = i + 1
             currentPath = line[i]; i = i + 1
             currentFilename = line[i]; i = i + 1
-            self.fileOps.moveFile(self, currentPath, currentFilename, oldPath, oldFilename)
+            #TODO: check if files are present and if old path is empty so that the move can happen seamlessly 
+            self.fileOps.moveFile(currentPath, currentFilename, oldPath, oldFilename)
+            numberOfUndos = numberOfUndos + 1
         self.fileOps.deleteFile(undoFilenameWithPath)
+        print('Finished '+ str(numberOfUndos) +' undo operations. Deleted file: ', undoFilenameWithPath)
+        sg.popup("Completed undo operations", keep_on_top=True)
     
+        
 #-----------------------------------------------             
 #-----------------------------------------------
 #------------- PRIMARY OPERATIONS --------------
@@ -324,10 +362,11 @@ class FileDuplicateSearchBinaryMode:
         self.baseFolder = foldername
         self.folderForDuplicateFiles = self.baseFolder + GlobalConstants.duplicateFilesFolder        
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
-        self.reports = Reports(self.folderForDuplicateFiles)
+        self.reports = Reports(self.folderForDuplicateFiles)        
         self.reports.add('Searching in : ' + self.baseFolder)
         self.reports.add('Duplicates will be stored in: ' + self.folderForDuplicateFiles)
-        self.atLeastOneDuplicateFound = False
+        self.undoStore = Undo(self.folderForDuplicateFiles)
+        self.atLeastOneDuplicateFound = False      
     
     def search(self):        
         firstDuplicate = False        
@@ -335,7 +374,7 @@ class FileDuplicateSearchBinaryMode:
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
             filenames = self.filesInFolder[folderOrdinal]
             path = self.folderPaths[folderOrdinal]
-            if path == self.folderForDuplicateFiles:#dont search an existing duplicates folder
+            if path == self.folderForDuplicateFiles:#don't search an existing duplicates folder
                 continue
             print('Searching in ', path)                
             for fileOrdinal in range(len(filenames)):#for each file in the folder
@@ -372,7 +411,9 @@ class FileDuplicateSearchBinaryMode:
                                 self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal)
                                 self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
                 self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
-        if not self.atLeastOneDuplicateFound:
+        if self.atLeastOneDuplicateFound:
+            self.undoStore.generateUndoFile()
+        else:
             self.reports.add("No duplicates found")
         self.reports.generateReport(self.atLeastOneDuplicateFound)
     
@@ -386,9 +427,11 @@ class FileDuplicateSearchBinaryMode:
         #TODO: check if string length is appropriate for the filesystem        
         fileName, fileExtension = self.fileOps.getFilenameAndExtension(file)
         #TODO: can have a try catch to check if directory exists, before doing the move (in case the directory gets deleted during runtime)
-        self.fileOps.moveFile(dupFolder, dupFile, self.folderForDuplicateFiles, fileName+"_"+str(duplicateOrdinal)+fileExtension) 
+        newFilename = fileName + "_" + str(duplicateOrdinal) + fileExtension
+        self.fileOps.moveFile(dupFolder, dupFile, self.folderForDuplicateFiles, newFilename) 
         reportString = folder + file + "'s duplicate: " + dupFolder + dupFile + " is renamed and moved to " + self.folderForDuplicateFiles
         self.reports.add(reportString)
+        self.undoStore.add(dupFolder, dupFile, self.folderForDuplicateFiles, newFilename)
     
     def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
         self.filesInFolder[folderOrdinal][fileOrdinal] = GlobalConstants.alreadyProcessedFile            
@@ -416,6 +459,7 @@ class ImageDuplicateSearch:
         self.reports.add('Searching in : ' + self.baseFolder)
         self.reports.add('Duplicates will be stored in: ' + self.folderForDuplicateFiles)
         self.atLeastOneDuplicateFound = False
+        self.undoStore = Undo(self.folderForDuplicateFiles)
         self.imageComparison = ImageHashComparison()
     
     def search(self):        
@@ -467,7 +511,9 @@ class ImageDuplicateSearch:
                             self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal)
                             self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
             self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
-        if not self.atLeastOneDuplicateFound:
+        if self.atLeastOneDuplicateFound:
+            self.undoStore.generateUndoFile()
+        else:
             self.reports.add("No duplicates found")
         self.reports.generateReport(self.atLeastOneDuplicateFound)
     
@@ -481,9 +527,11 @@ class ImageDuplicateSearch:
         #TODO: check if string length is appropriate for the filesystem        
         fileName, fileExtension = self.fileOps.getFilenameAndExtension(file)
         #TODO: can have a try catch to check if directory exists, before doing the move (in case the directory gets deleted during runtime)
-        self.fileOps.moveFile(dupFolder, dupFile, self.folderForDuplicateFiles, fileName+"_"+str(duplicateOrdinal)+fileExtension) 
+        newFilename = fileName + "_" + str(duplicateOrdinal) + fileExtension
+        self.fileOps.moveFile(dupFolder, dupFile, self.folderForDuplicateFiles, newFilename) 
         reportString = folder + file + "'s duplicate: " + dupFolder + dupFile + " is renamed and moved to " + self.folderForDuplicateFiles
         self.reports.add(reportString)
+        self.undoStore.add(dupFolder, dupFile, self.folderForDuplicateFiles, newFilename)
     
     def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
         self.filesInFolder[folderOrdinal][fileOrdinal] = GlobalConstants.alreadyProcessedFile 
@@ -539,7 +587,7 @@ if __name__ == '__main__':
     #-------------------------------------------------------------------------
     searchMethod = DropdownChoicesMenu()
     displayText = ['What kind of operation do you want to do?']
-    dropdownOptions = [FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels, FileSearchModes.choice_residualFiles]
+    dropdownOptions = [FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels, FileSearchModes.choice_residualFiles, FileSearchModes.choice_undoFileMove]
     defaultDropDownOption = FileSearchModes.choice_imagePixels
     searchMethod.showUserTheMenu(displayText, dropdownOptions, defaultDropDownOption)
     userChoice = searchMethod.getUserChoice()
@@ -604,7 +652,21 @@ if __name__ == '__main__':
         #TODO: can have a confirmation dialog box for safety         
         #---search and destroy
         fileDeleter = FileSearchDeleteSpecifiedFiles(folderChosen)
-        fileDeleter.searchAndDestroy(filesToDelete, caseSensitive)        
+        fileDeleter.searchAndDestroy(filesToDelete, caseSensitive)      
+        
+    #------------------------------------------------------------------------
+    #--- Undo operations
+    #------------------------------------------------------------------------
+    if userChoice == FileSearchModes.choice_undoFileMove:
+        #---get foldername
+        topText = ['Select the ".undo" file for undoing']        
+        bottomText = ['Undo cannot be done for deleted files']
+        whichFile = FileChoiceMenu() #get folder in which to start recursively searching and deleting files
+        whichFile.showUserTheMenu(topText, bottomText)
+        fileChosen = whichFile.getUserChoice()
+        print('chose: ',fileChosen)
+        undoer = Undo("")
+        undoer.performUndo(fileChosen)
     
     print('Program ended')
     
