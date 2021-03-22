@@ -331,7 +331,7 @@ class Undo:
         
     def generateUndoFile(self):        
         self.undoFilenameWithPath = self.folderToStore + "ToUndoTheFilesMoved_" + str(datetime.datetime.now()) + ".undo"
-        self.fileOps.writeLinesToFile(self.undoFilenameWithPath, self.report)        
+        self.fileOps.writeLinesToFile(self.undoFilenameWithPath, self.whatToUndo)        
 
     def performUndo(self, undoFilenameWithPath):
         numberOfUndos = 0
@@ -389,7 +389,7 @@ class FileDuplicateSearchBinaryMode:
                     pathToCompare = self.folderPaths[folderOrdinalToCompare] 
                     if pathToCompare == self.folderForDuplicateFiles:#don't search an existing duplicates folder
                         continue                     
-                    print('Comparing in ', pathToCompare)                        
+                    #print('Comparing in ', pathToCompare)                        
                     for fileOrdinalToCompare in range(len(filenamesToCompare)):#for each file in the folder
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
                         if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
@@ -483,7 +483,7 @@ class ImageDuplicateSearch:
                     pathToCompare = self.folderPaths[folderOrdinalToCompare] 
                     if pathToCompare == self.folderForDuplicateFiles:#don't search an existing duplicates folder
                         continue
-                    print('Comparing in ', pathToCompare)                        
+                    #print('Comparing in ', pathToCompare)                        
                     for fileOrdinalToCompare in range(len(filenamesToCompare)):#for each file in the folder
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
                         if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
@@ -588,7 +588,7 @@ if __name__ == '__main__':
     searchMethod = DropdownChoicesMenu()
     displayText = ['What kind of operation do you want to do?']
     dropdownOptions = [FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels, FileSearchModes.choice_residualFiles, FileSearchModes.choice_undoFileMove]
-    defaultDropDownOption = FileSearchModes.choice_imagePixels
+    defaultDropDownOption = FileSearchModes.choice_fileBinary
     searchMethod.showUserTheMenu(displayText, dropdownOptions, defaultDropDownOption)
     userChoice = searchMethod.getUserChoice()
     

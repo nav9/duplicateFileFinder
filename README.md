@@ -27,5 +27,6 @@ These are mentioned in the code for now.
 # Additional info
 * The project was created with LiClipse (not Eclipse. LiClipse is a nice IDE that has PyDev and supports refactoring and auto-complete for Python) in Python3.
 * The GUI library used is PySimpleGUI.
+* Images are compared with what's called an "image hash". It's a little different from hashing algorithms. The imagehash algorithm documentation explains more about it.
   
   
