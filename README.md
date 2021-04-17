@@ -12,6 +12,7 @@
 First install dependencies, using:  
 pip3 install imagehash  
 pip3 install PySimpleGUI  
+pip3 install Pillow  
   
 Then simply run the main file as:  
 python3 main.py  
