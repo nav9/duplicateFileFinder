@@ -11,6 +11,7 @@ import shutil #for moving file
 import datetime
 from PIL import Image
 import imagehash
+import fnmatch #for matching wildcards
 #import filetype
 #import Image
 
@@ -43,6 +44,10 @@ class FileSearchModes:
     choice_imagePixels = 'Duplicate image segregation'    
     choice_residualFiles = 'Delete files (like Thumbs.db etc.)'
     choice_undoFileMove = 'Undo files that were moved and renamed'
+    
+class FilenameMatching:
+    fullString = "fullString"
+    wildcard = "wildcard"
     
 
 #-----------------------------------------------             
@@ -554,13 +559,27 @@ class FileSearchDeleteSpecifiedFiles:
             filenames = self.filesInFolder[folderOrdinal]
             path = self.folderPaths[folderOrdinal]
             print('Searching in ', path)
-            for fileOrdinal in range(len(filenames)):#for each file in the folder
-                filename = self.filesInFolder[folderOrdinal][fileOrdinal]
-                print('Filename:', filename, ", ToDel:", filesToDelete)
-                if not caseSensitive:
-                    filename = filename.lower()
-                if filename in filesToDelete:
-                    self.__deleteFile__(folderOrdinal, fileOrdinal)
+            if not caseSensitive:
+                filenames = [x.lower() for x in filenames]
+            for theFileToDelete in filesToDelete:
+                print("Searching for files/pattern: ", theFileToDelete)
+                
+                filenameMatchingMode = FilenameMatching.fullString #the default for an exact filename match         
+                if "*" in theFileToDelete:#TODO: May need checks to verify if the wildcard pattern is ok
+                    filenameMatchingMode = FilenameMatching.wildcard
+                
+                for fileOrdinal in range(len(filenames)):#for each file in the selected folder
+                    filename = self.filesInFolder[folderOrdinal][fileOrdinal]
+                    #---what type of filename comparison?
+                    deleteIt = False
+                    if filenameMatchingMode == FilenameMatching.wildcard:
+                        if fnmatch.fnmatch(filename, theFileToDelete): #matched with wildcard *
+                            deleteIt = True                        
+                    if filenameMatchingMode == FilenameMatching.fullString:
+                        if filename == theFileToDelete: #exact match
+                            deleteIt = True
+                    if deleteIt:
+                        self.__deleteFile__(folderOrdinal, fileOrdinal)
         if not self.atLeastOneFileFound:
             self.reports.add("No files found")
         self.reports.generateReport(self.atLeastOneFileFound)
@@ -632,7 +651,7 @@ if __name__ == '__main__':
     if userChoice == FileSearchModes.choice_residualFiles:
         #---get filenames
         topText = ['Which files do you want to get rid of?', '(menus for case sensitivity and folder will be presented soon)']
-        bottomText = ['For example, you could type them as comma separated file names: ', 'Thumbs.db, Desktop.ini'] 
+        bottomText = ['For example, you could type them as comma separated file names: ', 'Thumbs.db, Desktop.ini, *.json'] 
         whichFiles = StringInputMenu() #get filename(s)
         whichFiles.showUserTheMenu(topText, bottomText)
         filesToDelete = whichFiles.getUserChoice()
