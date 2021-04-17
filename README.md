@@ -9,8 +9,9 @@
 
   
 # To run the program  
-First install imagehash, using:  
+First install dependencies, using:  
 pip3 install imagehash  
+pip3 install PySimpleGUI  
   
 Then simply run the main file as:  
 python3 main.py  
