@@ -4,7 +4,6 @@ Created on 19-Feb-2021
 @author: Navin
 '''
 
-from __future__ import print_function   # py2 compatibility
 import PySimpleGUI as sg
 import os
 import shutil #for moving file
@@ -13,7 +12,6 @@ from PIL import Image
 import imagehash
 import fnmatch #for matching wildcards
 #import filetype
-#import Image
 
 #TODO: Use a logger instead of the current print output
 #TODO: create a memory of the last location that was searched, and show that as the default when doing a folder search
@@ -169,6 +167,7 @@ class DropdownChoicesMenu:
     def getUserChoice(self):
         retVal = None
         if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL:
+            print('Exiting')
             exit()
             #retVal = FileSearchModes.choice_None
         else:
@@ -200,6 +199,7 @@ class FolderChoiceMenu:
         retVal = None
         if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[0] == '':
             #retVal = FileSearchModes.choice_None
+            print('Exiting')
             exit()
         else:
             fileOps = FileOperations()
@@ -238,6 +238,7 @@ class FileChoiceMenu:
         fileChosen = None
         if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[0] == '':
             #retVal = FileSearchModes.choice_None
+            print('Exiting')
             exit()
         else:
             fileChosen = self.values[0]
@@ -268,7 +269,8 @@ class StringInputMenu:
         filesChosen = self.values[0]
         if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or filesChosen == '':
             if filesChosen == '':
-                print('Exited. No filename was mentioned')
+                print('No filename was mentioned')
+            print('Exiting')
             exit()
         return filesChosen.split(',')
     
@@ -613,7 +615,7 @@ if __name__ == '__main__':
     userChoice = searchMethod.getUserChoice()
     
     #-------------------------------------------------------------------------
-    #---proceed with file duplicate search menu
+    #--- proceed with file duplicate search menu
     #-------------------------------------------------------------------------
     if userChoice == FileSearchModes.choice_fileBinary:
         #---get folder name
@@ -627,7 +629,7 @@ if __name__ == '__main__':
         fileSearcher.search()
     
     #-------------------------------------------------------------------------
-    #---proceed with image search menu
+    #--- proceed with image search menu
     #-------------------------------------------------------------------------
     """ Image search is useful in cases where for example, an image is in jpg format and the same image is also present in png format and you want to delete one of the duplicates. It can also detect images that are approximately similar """
     if userChoice == FileSearchModes.choice_imagePixels:
@@ -647,7 +649,7 @@ if __name__ == '__main__':
         fileSearcher.search()        
 #         
     #-------------------------------------------------------------------------
-    #---specify what file to remove from folder and subfolders
+    #--- specify what file to remove from folder and subfolders
     #-------------------------------------------------------------------------
     if userChoice == FileSearchModes.choice_residualFiles:
         #---get filenames
