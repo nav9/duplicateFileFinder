@@ -21,6 +21,7 @@ import fnmatch #for matching wildcards
 #TODO: Add an option to undo the duplicate file move
 #TODO: Add a progress bar and also output progress percentage with current time to command prompt.
 #TODO: If there are too many files, a cache can be activated to store details of files being searched, to avoid extra computation during comparison
+#TODO: The program could 'remember' any folder chosen by a user, so that the user won't have to keep navigating to the folder repeatedly.
 
 #-----------------------------------------------             
 #-----------------------------------------------
@@ -515,7 +516,7 @@ class ImageDuplicateSearch:
                             duplicateOrdinal = duplicateOrdinal + 1
                             self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal)
                             self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
-            self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
+                self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
         if self.atLeastOneDuplicateFound:
             self.undoStore.generateUndoFile()
         else:
@@ -600,7 +601,7 @@ class FileSearchDeleteSpecifiedFiles:
 #-----------------------------------------------
 #-----------------------------------------------
 if __name__ == '__main__':
-    sg.theme('Dark grey 13')  # please make your creations colorful
+    sg.theme('Dark grey 13')  
     #-------------------------------------------------------------------------
     #--- main menu for choosing which operation to perform
     #-------------------------------------------------------------------------
