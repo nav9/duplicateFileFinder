@@ -20,6 +20,7 @@ import fnmatch #for matching wildcards
 #TODO: Add a progress bar and also output progress percentage with current time to command prompt.
 #TODO: If there are too many files, a cache can be activated to store details of files being searched, to avoid extra computation during comparison
 #TODO: The program could 'remember' any folder chosen by a user, so that the user won't have to keep navigating to the folder repeatedly.
+#TODO: When processing websites saved to local disk (they have an html file and a corresponding folder that stores data relevant to the html file), it would help to do some pre-processing to recognize such folders and either process them differently or to zip them and then compare them.
 
 #-----------------------------------------------             
 #-----------------------------------------------
@@ -559,11 +560,13 @@ class FileSearchDeleteSpecifiedFiles:
         
         #---initiate search for duplicates
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
-            filenames = self.filesInFolder[folderOrdinal]
+            #filenames = self.filesInFolder[folderOrdinal]
             path = self.folderPaths[folderOrdinal]
             print('Searching in ', path)
             if not caseSensitive:
-                filenames = [x.lower() for x in filenames]
+                filesToDelete = [x.lower() for x in filesToDelete]
+            filesToDelete = [x.strip() for x in filesToDelete]
+            print('filesToDelete:', filesToDelete)
             for theFileToDelete in filesToDelete:
                 print("Searching for files/pattern: ", theFileToDelete)
                 
@@ -571,15 +574,17 @@ class FileSearchDeleteSpecifiedFiles:
                 if "*" in theFileToDelete:#TODO: May need checks to verify if the wildcard pattern is ok
                     filenameMatchingMode = FilenameMatching.wildcard
                 
-                for fileOrdinal in range(len(filenames)):#for each file in the selected folder
+                for fileOrdinal in range(len(self.filesInFolder[folderOrdinal])):#for each file in the selected folder
                     filename = self.filesInFolder[folderOrdinal][fileOrdinal]
+                    if not caseSensitive:
+                        filename = filename.lower()
                     #---what type of filename comparison?
                     deleteIt = False
                     if filenameMatchingMode == FilenameMatching.wildcard:
                         if fnmatch.fnmatch(filename, theFileToDelete): #matched with wildcard *
                             deleteIt = True                        
                     if filenameMatchingMode == FilenameMatching.fullString:
-                        if filename == theFileToDelete: #exact match
+                        if filename.strip() == theFileToDelete: #exact match
                             deleteIt = True
                     if deleteIt:
                         self.__deleteFile__(folderOrdinal, fileOrdinal)
@@ -664,7 +669,7 @@ if __name__ == '__main__':
         yesNo.showUserTheDialogBox(yesNoMenuText)
         caseSensitive = yesNo.getUserChoice()
         if not caseSensitive:
-            filesToDelete = [x.lower() for x in filesToDelete]
+            filesToDelete = [x.lower() for x in filesToDelete]        
         #---get foldername
         topText = ['Which folder do you want to search in? ']        
         bottomText = ['Subfolders will also be searched to delete these files:', str(filesToDelete)]        
