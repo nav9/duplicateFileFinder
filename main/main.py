@@ -65,7 +65,6 @@ class FileOperations:
     """ Get names of files in each folder and subfolder. Also get sizes of files """
     def getFileNamesOfFilesInAllFoldersAndSubfolders(self, folderToConsider): 
         #TODO: check if folder exists
-        #TODO: what about symlinks?
         #TODO: read-only files, files without permission to read, files that can't be moved, corrupted files
         #TODO: What about "file-like objects"
         #TODO: Encrypted containers?
@@ -76,13 +75,16 @@ class FileOperations:
             folderPaths.append(folderPath)
             #subdir = oneFolder[self.SUBDIRECTORIES]
             filesInThisFolder = oneFolder[self.FILES_IN_FOLDER]
+            filesNotFound = []
             sizeOfFiles = []
             for filename in filesInThisFolder:
                 try:
                     fileProperties = os.stat(folderPath + filename)
                     sizeOfFiles.append(fileProperties.st_size)
                 except FileNotFoundError:
+                    filesNotFound.append(filename)
                     pass #ignore files that are not found. It may be a broken symlink or a file that was deleted in-between or a file on a connected device that got disconnected
+            filesInThisFolder = [filename for filename in filesInThisFolder if filename not in filesNotFound] #remove any files not found, from the list
             fileSizes.append(sizeOfFiles)
             filesInFolder.append(filesInThisFolder)            
         return folderPaths, filesInFolder, fileSizes #returns as [fullFolderPath1, fullFolderPath2, ...], [[filename1, filename2, filename3, ...], [], []], [[filesize1, filesize2, filesize3, ...], [], []]
@@ -425,13 +427,13 @@ class FileDuplicateSearchBinaryMode:
                     if pathToCompare == self.folderForDuplicateFiles:#don't search an existing duplicates folder
                         continue                     
                     #print('Comparing in ', pathToCompare)                        
+                    print("filenames: ", str(filenamesToCompare))
                     for fileOrdinalToCompare in range(len(filenamesToCompare)):#for each file in the folder
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
                         if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
                             continue
                         if filenameToCompare == GlobalConstants.alreadyProcessedFile:
-                            continue
-                        #print('Is ', filename, '==', filenameToCompare)                        
+                            continue                    
                         filesizeToCompare = self.fileSizes[folderOrdinalToCompare][fileOrdinalToCompare]
                         if filesize == filesizeToCompare:#initial match found based on size
                                                                                    
