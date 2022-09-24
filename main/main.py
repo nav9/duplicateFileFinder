@@ -75,7 +75,7 @@ class FileOperations:
         folderPaths = []; filesInFolder = []; fileSizes = []
         print("Obtaining a list of folders and files...")
         result = os.walk(folderToConsider, followlinks=False) #followlinks=False allows skipping symlinks. It's False by default. Just making it obvious here
-        print("Found these many folders: ", len(result))
+        print("Walking to collect names of files in this folder: ", folderToConsider)
         for oneFolder in result:
             folderPath = self.folderSlash(oneFolder[self.FULL_FOLDER_PATH])
             folderPaths.append(folderPath)
@@ -413,26 +413,27 @@ class FileDuplicateSearchBinaryMode:
     def search(self):        
         firstDuplicate = False        
         #---initiate search for duplicates
+        totalFolders = len(self.folderPaths)
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
             filenames = self.filesInFolder[folderOrdinal]
             path = self.folderPaths[folderOrdinal]
             if path == self.folderForDuplicateFiles:#don't search an existing duplicates folder
                 continue
-            print('Searching in ', path)                
+            print('Searching in ', path)   
+            totalFilesInFolder = len(filenames)         
             for fileOrdinal in range(len(filenames)):#for each file in the folder
                 duplicateOrdinal = 0
                 filesize = self.fileSizes[folderOrdinal][fileOrdinal]
                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
                 if filename == GlobalConstants.alreadyProcessedFile:
                     continue
-                #---compare with all files
-                for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder
+                print("Processing file ", fileOrdinal, "/", totalFilesInFolder, " in folder ", folderOrdinal, "/", totalFolders)                    
+                #---compare with all files                                
+                for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder              
                     filenamesToCompare = self.filesInFolder[folderOrdinalToCompare]
                     pathToCompare = self.folderPaths[folderOrdinalToCompare] 
                     if pathToCompare == self.folderForDuplicateFiles:#don't search an existing duplicates folder
-                        continue                     
-                    #print('Comparing in ', pathToCompare)                        
-                    print("filenames: ", str(filenamesToCompare))
+                        continue
                     for fileOrdinalToCompare in range(len(filenamesToCompare)):#for each file in the folder
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
                         if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
@@ -507,24 +508,27 @@ class ImageDuplicateSearch:
     def search(self):        
         firstDuplicate = False        
         #---initiate search for duplicates
+        totalFolders = len(self.folderPaths)
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
             filenames = self.filesInFolder[folderOrdinal]
             path = self.folderPaths[folderOrdinal]
             if path == self.folderForDuplicateFiles:#don't search an existing duplicates folder
                 continue
-            print('Searching in ', path)                
+            print('Searching in ', path) 
+            totalFilesInFolder = len(filenames)           
             for fileOrdinal in range(len(filenames)):#for each file in the folder
                 duplicateOrdinal = 0
                 #filesize = self.fileSizes[folderOrdinal][fileOrdinal]
                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
                 if filename == GlobalConstants.alreadyProcessedFile:
                     continue
+                print("Processing file ", fileOrdinal, "/", totalFilesInFolder, " in folder ", folderOrdinal, "/", totalFolders)                    
                 #---compare with all files
                 for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder
                     filenamesToCompare = self.filesInFolder[folderOrdinalToCompare]
                     pathToCompare = self.folderPaths[folderOrdinalToCompare] 
                     if pathToCompare == self.folderForDuplicateFiles:#don't search an existing duplicates folder
-                        continue
+                        continue                       
                     #print('Comparing in ', pathToCompare)                        
                     for fileOrdinalToCompare in range(len(filenamesToCompare)):#for each file in the folder
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
@@ -592,10 +596,11 @@ class FileSearchDeleteSpecifiedFiles:
         self.reports.add("Files to delete: " + str(filesToDelete))
         
         #---initiate search for duplicates
-        for folderOrdinal in range(len(self.folderPaths)):#for each folder
+        totalFolders = len(self.folderPaths)
+        for folderOrdinal in range(len(self.folderPaths)):#for each folder        
             #filenames = self.filesInFolder[folderOrdinal]
             path = self.folderPaths[folderOrdinal]
-            print('Searching in ', path)
+            print('Processing folder', folderOrdinal, '/', totalFolders, '. Searching in ', path)
             if not caseSensitive:
                 filesToDelete = [x.lower() for x in filesToDelete]
             filesToDelete = [x.strip() for x in filesToDelete]
