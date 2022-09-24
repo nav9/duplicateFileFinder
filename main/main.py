@@ -19,7 +19,6 @@ import fnmatch #for matching wildcards
 #TODO: Add an option to undo the duplicate file move
 #TODO: Add a progress bar and also output progress percentage with current time to command prompt.
 #TODO: If there are too many files, a cache can be activated to store details of files being searched, to avoid extra computation during comparison
-#TODO: The program could 'remember' any folder chosen by a user, so that the user won't have to keep navigating to the folder repeatedly.
 #TODO: When processing websites saved to local disk (they have an html file and a corresponding folder that stores data relevant to the html file), it would help to do some pre-processing to recognize such folders and either process them differently or to zip them and then compare them.
 
 #-----------------------------------------------             
@@ -115,6 +114,9 @@ class FileOperations:
             try: os.makedirs(folder)
             except FileExistsError:#in case there's a race condition where some other process creates the directory before makedirs is called
                 pass
+            
+    def getCurrentDirectory(self):
+        return os.getcwd()
     
     def isThisValidDirectory(self, folderpath):
         return os.path.exists(folderpath)
@@ -179,23 +181,28 @@ class DropdownChoicesMenu:
         return retVal #returns one of the FileSearchModes
 
 class FolderChoiceMenu:
-    def __init__(self):
+    def __init__(self, fileOps):
         self.event = None
         self.values = None
-        self.horizontalSepLen = 35       
+        self.horizontalSepLen = 35    
+        self.fileOps = fileOps  
+        self.folderNameStorageFile = "previouslySelectedFolder.txt"
+        self.previouslySelectedFolder = None
+        self.FIRST_POSITION = 0
     
     def showUserTheMenu(self, topText, bottomText):
         #---choose mode of running
         layout = []
         for s in topText:
-            layout.append([sg.Text(s, justification='left')])
-        layout.append([sg.Input(), sg.FolderBrowse()])
+            layout.append([sg.Text(s, justification = 'left')])
+        self.checkForPreviouslySelectedFolder()
+        layout.append([sg.Input(), sg.FolderBrowse(initial_folder = self.previouslySelectedFolder)])
         for s in bottomText:
-            layout.append([sg.Text(s, text_color='grey', justification='left')])        
-        layout.append([sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')])
+            layout.append([sg.Text(s, text_color = 'grey', justification = 'left')])        
+        layout.append([sg.Text('_' * self.horizontalSepLen, justification = 'right', text_color = 'black')])
         layout.append([sg.Button(GlobalConstants.EVENT_CANCEL), sg.Button('Ok')])
         
-        window = sg.Window('', layout, grab_anywhere=False, element_justification='right')    
+        window = sg.Window('', layout, grab_anywhere = False, element_justification = 'right')    
         self.event, self.values = window.read()        
         window.close()
     
@@ -206,16 +213,31 @@ class FolderChoiceMenu:
             print('Exiting')
             exit()
         else:
-            fileOps = FileOperations()
-            folderChosen = self.values[0]
-            if fileOps.isThisValidDirectory(folderChosen):
-                retVal = fileOps.folderSlash(folderChosen)
+            folderChosen = self.values[self.FIRST_POSITION]
+            if self.fileOps.isThisValidDirectory(folderChosen):
+                retVal = self.fileOps.folderSlash(folderChosen)
             else:
                 retVal = FileSearchModes.choice_None
 #         if retVal == FileSearchModes.choice_None:
 #             sg.popup('Please select a valid folder next time. Exiting now.')
 #             exit()    
-        return retVal   
+        return retVal 
+    
+    def checkForPreviouslySelectedFolder(self):
+        if self.fileOps.isValidFile(self.folderNameStorageFile):#there is a file storing the previously selected folder
+            lines = self.fileOps.readFromFile(self.folderNameStorageFile)
+            self.previouslySelectedFolder = lines[self.FIRST_POSITION]
+            if not self.fileOps.isThisValidDirectory(self.previouslySelectedFolder):
+                self.previouslySelectedFolder = None
+        else:
+            self.previouslySelectedFolder = None
+        if self.previouslySelectedFolder == None:
+            self.previouslySelectedFolder = self.fileOps.getCurrentDirectory()
+            self.setThisFolderAsThePreviouslySelectedFolder(self.previouslySelectedFolder)
+
+    def setThisFolderAsThePreviouslySelectedFolder(self, folderName):
+        switchToList = [folderName]
+        self.fileOps.writeLinesToFile(self.folderNameStorageFile, switchToList)
 
 class FileChoiceMenu:
     def __init__(self):
@@ -252,7 +274,7 @@ class StringInputMenu:
     def __init__(self):
         self.event = None
         self.values = None
-        self.horizontalSepLen = 35       
+        self.horizontalSepLen = 35      
     
     def showUserTheMenu(self, topText, bottomText):
         #---choose mode of running
@@ -311,8 +333,8 @@ class YesNoMenu:
 #-----------------------------------------------
 #-----------------------------------------------        
 class Reports:
-    def __init__(self, folderToStore):
-        self.fileOps = FileOperations()
+    def __init__(self, folderToStore, fileOps):
+        self.fileOps = fileOps
         self.folderToStore = folderToStore
         self.report = []
         self.reportFilenameWithPath = 'None'
@@ -331,11 +353,11 @@ class Reports:
 
 class Undo:
     """ This class allows the creation of an undo file and allows using an existing undo file to undo the file operations that were performed earlier """
-    def __init__(self, folderToStore):#TODO: refactor to not require sending the folder name, coz when the class is instantiated for performing an undo, it's not necessary to specify a folder
+    def __init__(self, folderToStore, fileOps):#TODO: refactor to not require sending the folder name, coz when the class is instantiated for performing an undo, it's not necessary to specify a folder
         self.whatToUndo = []
         self.separator = ','
         self.folderToStore = folderToStore
-        self.fileOps = FileOperations()
+        self.fileOps = fileOps
     
     def add(self, oldPath, oldFilename, newPath, newFilename):
         data = oldPath + self.separator + oldFilename + self.separator + newPath + self.separator + newFilename
@@ -369,15 +391,15 @@ class Undo:
 #-----------------------------------------------
 #-----------------------------------------------    
 class FileDuplicateSearchBinaryMode:
-    def __init__(self, foldername):
-        self.fileOps = FileOperations()
+    def __init__(self, foldername, fileOps):
+        self.fileOps = fileOps
         self.baseFolder = foldername
         self.folderForDuplicateFiles = self.baseFolder + GlobalConstants.duplicateFilesFolder        
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
-        self.reports = Reports(self.folderForDuplicateFiles)        
+        self.reports = Reports(self.folderForDuplicateFiles, self.fileOps)        
         self.reports.add('Searching in : ' + self.baseFolder)
         self.reports.add('Duplicates will be stored in: ' + self.folderForDuplicateFiles)
-        self.undoStore = Undo(self.folderForDuplicateFiles)
+        self.undoStore = Undo(self.folderForDuplicateFiles, self.fileOps)
         self.atLeastOneDuplicateFound = False      
     
     def search(self):        
@@ -462,8 +484,8 @@ class ImageHashComparison:
         return hash1 == hash2
     
 class ImageDuplicateSearch:
-    def __init__(self, foldername):
-        self.fileOps = FileOperations()
+    def __init__(self, foldername, fileOps):
+        self.fileOps = fileOps
         self.baseFolder = foldername
         self.folderForDuplicateFiles = self.baseFolder + GlobalConstants.duplicateImagesFolder        
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
@@ -471,7 +493,7 @@ class ImageDuplicateSearch:
         self.reports.add('Searching in : ' + self.baseFolder)
         self.reports.add('Duplicates will be stored in: ' + self.folderForDuplicateFiles)
         self.atLeastOneDuplicateFound = False
-        self.undoStore = Undo(self.folderForDuplicateFiles)
+        self.undoStore = Undo(self.folderForDuplicateFiles, self.fileOps)
         self.imageComparison = ImageHashComparison()
     
     def search(self):        
@@ -550,8 +572,8 @@ class ImageDuplicateSearch:
         
 
 class FileSearchDeleteSpecifiedFiles:
-    def __init__(self, foldername):
-        self.fileOps = FileOperations()
+    def __init__(self, foldername, fileOps):
+        self.fileOps = fileOps
         self.baseFolder = foldername
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
         self.reports = Reports(self.baseFolder)
@@ -612,6 +634,7 @@ class FileSearchDeleteSpecifiedFiles:
 #-----------------------------------------------
 if __name__ == '__main__':
     sg.theme('Dark grey 13')  
+    fileOps = FileOperations()
     #-------------------------------------------------------------------------
     #--- main menu for choosing which operation to perform
     #-------------------------------------------------------------------------
@@ -629,11 +652,11 @@ if __name__ == '__main__':
         #---get folder name
         topText = ['Which folder do you want to search in? ']        
         bottomText = ['Duplicate files are assumed to be inside the folder you choose. This', 'program will move all duplicates into a separate, newly created folder']        
-        whichFolder = FolderChoiceMenu()
+        whichFolder = FolderChoiceMenu(fileOps)
         whichFolder.showUserTheMenu(topText, bottomText)
         folderChosen = whichFolder.getUserChoice()
         #---search for duplicates
-        fileSearcher = FileDuplicateSearchBinaryMode(folderChosen)
+        fileSearcher = FileDuplicateSearchBinaryMode(folderChosen, fileOps)
         fileSearcher.search()
     
     #-------------------------------------------------------------------------
@@ -649,11 +672,11 @@ if __name__ == '__main__':
         #---get folder name
         topText = ['Which folder do you want to search in? ', 'Images are matched irrespective of dimension or image format']        
         bottomText = ['Duplicate files are assumed to be inside the folder you choose. This', 'program will move all duplicates into a separate, newly created folder']        
-        whichFolder = FolderChoiceMenu()
+        whichFolder = FolderChoiceMenu(fileOps)
         whichFolder.showUserTheMenu(topText, bottomText)
         folderChosen = whichFolder.getUserChoice()
         #---search for duplicates
-        fileSearcher = ImageDuplicateSearch(folderChosen)
+        fileSearcher = ImageDuplicateSearch(folderChosen, fileOps)
         fileSearcher.search()        
 #         
     #-------------------------------------------------------------------------
@@ -676,12 +699,12 @@ if __name__ == '__main__':
         #---get foldername
         topText = ['Which folder do you want to search in? ']        
         bottomText = ['Subfolders will also be searched to delete these files:', str(filesToDelete)]        
-        whichFolder = FolderChoiceMenu() #get folder in which to start recursively searching and deleting files
+        whichFolder = FolderChoiceMenu(fileOps) #get folder in which to start recursively searching and deleting files
         whichFolder.showUserTheMenu(topText, bottomText)
         folderChosen = whichFolder.getUserChoice()
         #TODO: can have a confirmation dialog box for safety         
         #---search and destroy
-        fileDeleter = FileSearchDeleteSpecifiedFiles(folderChosen)
+        fileDeleter = FileSearchDeleteSpecifiedFiles(folderChosen, fileOps)
         fileDeleter.searchAndDestroy(filesToDelete, caseSensitive)      
         
     #------------------------------------------------------------------------
@@ -695,7 +718,7 @@ if __name__ == '__main__':
         whichFile.showUserTheMenu(topText, bottomText)
         fileChosen = whichFile.getUserChoice()
         print('chose: ',fileChosen)
-        undoer = Undo("")
+        undoer = Undo("", fileOps)
         undoer.performUndo(fileChosen)
     
     print('Program ended')
