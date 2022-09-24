@@ -9,13 +9,12 @@
 
   
 # To run the program  
-First install dependencies, using:  
-pip3 install imagehash  
-pip3 install PySimpleGUI  
-pip3 install Pillow  
+Python 3.9.6 was used.  
+First install dependencies, using (the version numbers don't have to match exactly):  
+`pip3 install imagehash=4.3.0 PySimpleGUI=4.60.3 Pillow=9.2.0`    
   
 Then simply run the main file as:  
-python3 main.py  
+`python3 main.py`  
   
 # TODO
 These are mentioned in the code for now.

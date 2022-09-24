@@ -13,6 +13,7 @@ import imagehash
 import fnmatch #for matching wildcards
 #import filetype
 
+#TODO: Check for an existing "duplicateFilesFolder", and either ignore it or decide what to do about it.
 #TODO: Use a logger instead of the current print output
 #TODO: create a memory of the last location that was searched, and show that as the default when doing a folder search
 #TODO: Use a CI to automatically run tests and to use pyinstaller to generate an installer file
@@ -20,6 +21,8 @@ import fnmatch #for matching wildcards
 #TODO: Add a progress bar and also output progress percentage with current time to command prompt.
 #TODO: If there are too many files, a cache can be activated to store details of files being searched, to avoid extra computation during comparison
 #TODO: When processing websites saved to local disk (they have an html file and a corresponding folder that stores data relevant to the html file), it would help to do some pre-processing to recognize such folders and either process them differently or to zip them and then compare them.
+#TODO: Recognize things like git folders or entire folders that are duplicate
+#TODO: Introduce a menu option for comparing sentences of a file and removing duplicate sentences. This helps cosolidate any text notes or even phone contacts.
 
 #-----------------------------------------------             
 #-----------------------------------------------
@@ -36,6 +39,7 @@ class GlobalConstants:
     NO_BUTTON = 'No'
     alreadyProcessedFile = "."
     supportedImageFormats = ['jpg', 'jpeg', 'png', 'webp'] #let all extensions mentioned here be in lower case. More can be added after testing.
+    FIRST_POSITION = 0
 
 class FileSearchModes:
     choice_None = 'Exit'
@@ -69,7 +73,9 @@ class FileOperations:
         #TODO: What about "file-like objects"
         #TODO: Encrypted containers?
         folderPaths = []; filesInFolder = []; fileSizes = []
+        print("Obtaining a list of folders and files...")
         result = os.walk(folderToConsider, followlinks=False) #followlinks=False allows skipping symlinks. It's False by default. Just making it obvious here
+        print("Found these many folders: ", len(result))
         for oneFolder in result:
             folderPath = self.folderSlash(oneFolder[self.FULL_FOLDER_PATH])
             folderPaths.append(folderPath)
@@ -179,7 +185,7 @@ class DropdownChoicesMenu:
             exit()
             #retVal = FileSearchModes.choice_None
         else:
-            retVal = self.values[0]    
+            retVal = self.values[GlobalConstants.FIRST_POSITION]    
         return retVal #returns one of the FileSearchModes
 
 class FolderChoiceMenu:
@@ -190,7 +196,6 @@ class FolderChoiceMenu:
         self.fileOps = fileOps  
         self.folderNameStorageFile = "previouslySelectedFolder.txt"
         self.previouslySelectedFolder = None
-        self.FIRST_POSITION = 0
     
     def showUserTheMenu(self, topText, bottomText):
         #---choose mode of running
@@ -210,12 +215,12 @@ class FolderChoiceMenu:
     
     def getUserChoice(self):
         retVal = None
-        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[0] == '':
+        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.FIRST_POSITION] == '':
             #retVal = FileSearchModes.choice_None
             print('Exiting')
             exit()
         else:
-            folderChosen = self.values[self.FIRST_POSITION]
+            folderChosen = self.values[GlobalConstants.FIRST_POSITION]
             if self.fileOps.isThisValidDirectory(folderChosen):
                 retVal = self.fileOps.folderSlash(folderChosen)
                 self.setThisFolderAsThePreviouslySelectedFolder(retVal)
@@ -229,7 +234,7 @@ class FolderChoiceMenu:
     def checkForPreviouslySelectedFolder(self):
         if self.fileOps.isValidFile(self.folderNameStorageFile):#there is a file storing the previously selected folder
             lines = self.fileOps.readFromFile(self.folderNameStorageFile)
-            self.previouslySelectedFolder = lines[self.FIRST_POSITION]
+            self.previouslySelectedFolder = lines[GlobalConstants.FIRST_POSITION]
             if not self.fileOps.isThisValidDirectory(self.previouslySelectedFolder):
                 self.previouslySelectedFolder = None
         else:
@@ -265,12 +270,12 @@ class FileChoiceMenu:
     
     def getUserChoice(self):
         fileChosen = None
-        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[0] == '':
+        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.FIRST_POSITION] == '':
             #retVal = FileSearchModes.choice_None
             print('Exiting')
             exit()
         else:
-            fileChosen = self.values[0]
+            fileChosen = self.values[GlobalConstants.FIRST_POSITION]
         return fileChosen  
     
 class StringInputMenu:
@@ -295,7 +300,7 @@ class StringInputMenu:
         window.close()
     
     def getUserChoice(self):
-        filesChosen = self.values[0]
+        filesChosen = self.values[GlobalConstants.FIRST_POSITION]
         if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or filesChosen == '':
             if filesChosen == '':
                 print('No filename was mentioned')
