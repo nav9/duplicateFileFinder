@@ -216,6 +216,7 @@ class FolderChoiceMenu:
             folderChosen = self.values[self.FIRST_POSITION]
             if self.fileOps.isThisValidDirectory(folderChosen):
                 retVal = self.fileOps.folderSlash(folderChosen)
+                self.setThisFolderAsThePreviouslySelectedFolder(retVal)
             else:
                 retVal = FileSearchModes.choice_None
 #         if retVal == FileSearchModes.choice_None:
@@ -236,8 +237,8 @@ class FolderChoiceMenu:
             self.setThisFolderAsThePreviouslySelectedFolder(self.previouslySelectedFolder)
 
     def setThisFolderAsThePreviouslySelectedFolder(self, folderName):
-        switchToList = [folderName]
-        self.fileOps.writeLinesToFile(self.folderNameStorageFile, switchToList)
+        nameAsList = [folderName] #need to convert to list, else the writing function will write each letter in a separate line
+        self.fileOps.writeLinesToFile(self.folderNameStorageFile, nameAsList)
 
 class FileChoiceMenu:
     def __init__(self):
