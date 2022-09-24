@@ -71,7 +71,7 @@ class FileOperations:
         #TODO: What about "file-like objects"
         #TODO: Encrypted containers?
         folderPaths = []; filesInFolder = []; fileSizes = []
-        result = os.walk(folderToConsider)        
+        result = os.walk(folderToConsider, followlinks=False) #followlinks=False allows skipping symlinks. It's False by default. Just making it obvious here
         for oneFolder in result:
             folderPath = self.folderSlash(oneFolder[self.FULL_FOLDER_PATH])
             folderPaths.append(folderPath)
@@ -79,8 +79,11 @@ class FileOperations:
             filesInThisFolder = oneFolder[self.FILES_IN_FOLDER]
             sizeOfFiles = []
             for filename in filesInThisFolder:
-                fileProperties = os.stat(folderPath + filename)
-                sizeOfFiles.append(fileProperties.st_size)
+                try:
+                    fileProperties = os.stat(folderPath + filename)
+                    sizeOfFiles.append(fileProperties.st_size)
+                except FileNotFoundError:
+                    pass #ignore files that are not found. It may be a broken symlink or a file that was deleted in-between or a file on a connected device that got disconnected
             fileSizes.append(sizeOfFiles)
             filesInFolder.append(filesInThisFolder)            
         return folderPaths, filesInFolder, fileSizes #returns as [fullFolderPath1, fullFolderPath2, ...], [[filename1, filename2, filename3, ...], [], []], [[filesize1, filesize2, filesize3, ...], [], []]
