@@ -39,7 +39,7 @@ class GlobalConstants:
     NO_BUTTON = 'No'
     alreadyProcessedFile = "."
     supportedImageFormats = ['jpg', 'jpeg', 'png', 'webp'] #let all extensions mentioned here be in lower case. More can be added after testing.
-    FIRST_POSITION = 0
+    LIST_START = 0
 
 class FileSearchModes:
     choice_None = 'Exit'
@@ -75,7 +75,7 @@ class FileOperations:
         folderPaths = []; filesInFolder = []; fileSizes = []
         print("Obtaining a list of folders and files...")
         result = os.walk(folderToConsider, followlinks=False) #followlinks=False allows skipping symlinks. It's False by default. Just making it obvious here
-        print("Walking to collect names of files in this folder: ", folderToConsider)
+
         for oneFolder in result:
             folderPath = self.folderSlash(oneFolder[self.FULL_FOLDER_PATH])
             folderPaths.append(folderPath)
@@ -140,15 +140,17 @@ class FileOperations:
         return folderName   
     
     def compareEntireFiles(self, filename1, filename2):
-        with open(filename1, 'rb') as filePointer1, open(filename2, 'rb') as filePointer2:
-            while True:
-                chunk1 = filePointer1.read(self.CHUNK_SIZE_FOR_BINARY_FILE_COMPARISON)#TODO: try catch
-                chunk2 = filePointer2.read(self.CHUNK_SIZE_FOR_BINARY_FILE_COMPARISON)
-                if chunk1 != chunk2:
-                    return False
-                if not chunk1:#if chunk is of zero bytes (nothing more to read from file), return True because chunk2 will also be zero. If it wasn't zero, the previous if would've been False
-                    return True       
-
+        try:
+            with open(filename1, 'rb') as filePointer1, open(filename2, 'rb') as filePointer2:
+                while True:
+                    chunk1 = filePointer1.read(self.CHUNK_SIZE_FOR_BINARY_FILE_COMPARISON)#TODO: try catch
+                    chunk2 = filePointer2.read(self.CHUNK_SIZE_FOR_BINARY_FILE_COMPARISON)
+                    if chunk1 != chunk2:
+                        return False
+                    if not chunk1:#if chunk is of zero bytes (nothing more to read from file), return True because chunk2 will also be zero. If it wasn't zero, the previous if would've been False
+                        return True       
+        except FileNotFoundError:
+            print("One of these files had a FileNotFoundError. Skipping: ", filename1, filename2) #the file is not found either because it's a broken link or the file does not actually exist
     
 #-----------------------------------------------             
 #-----------------------------------------------
@@ -185,7 +187,7 @@ class DropdownChoicesMenu:
             exit()
             #retVal = FileSearchModes.choice_None
         else:
-            retVal = self.values[GlobalConstants.FIRST_POSITION]    
+            retVal = self.values[GlobalConstants.LIST_START]    
         return retVal #returns one of the FileSearchModes
 
 class FolderChoiceMenu:
@@ -215,12 +217,12 @@ class FolderChoiceMenu:
     
     def getUserChoice(self):
         retVal = None
-        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.FIRST_POSITION] == '':
+        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.LIST_START] == '':
             #retVal = FileSearchModes.choice_None
             print('Exiting')
             exit()
         else:
-            folderChosen = self.values[GlobalConstants.FIRST_POSITION]
+            folderChosen = self.values[GlobalConstants.LIST_START]
             if self.fileOps.isThisValidDirectory(folderChosen):
                 retVal = self.fileOps.folderSlash(folderChosen)
                 self.setThisFolderAsThePreviouslySelectedFolder(retVal)
@@ -234,7 +236,7 @@ class FolderChoiceMenu:
     def checkForPreviouslySelectedFolder(self):
         if self.fileOps.isValidFile(self.folderNameStorageFile):#there is a file storing the previously selected folder
             lines = self.fileOps.readFromFile(self.folderNameStorageFile)
-            self.previouslySelectedFolder = lines[GlobalConstants.FIRST_POSITION]
+            self.previouslySelectedFolder = lines[GlobalConstants.LIST_START]
             if not self.fileOps.isThisValidDirectory(self.previouslySelectedFolder):
                 self.previouslySelectedFolder = None
         else:
@@ -270,12 +272,12 @@ class FileChoiceMenu:
     
     def getUserChoice(self):
         fileChosen = None
-        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.FIRST_POSITION] == '':
+        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.LIST_START] == '':
             #retVal = FileSearchModes.choice_None
             print('Exiting')
             exit()
         else:
-            fileChosen = self.values[GlobalConstants.FIRST_POSITION]
+            fileChosen = self.values[GlobalConstants.LIST_START]
         return fileChosen  
     
 class StringInputMenu:
@@ -300,7 +302,7 @@ class StringInputMenu:
         window.close()
     
     def getUserChoice(self):
-        filesChosen = self.values[GlobalConstants.FIRST_POSITION]
+        filesChosen = self.values[GlobalConstants.LIST_START]
         if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or filesChosen == '':
             if filesChosen == '':
                 print('No filename was mentioned')
@@ -413,27 +415,26 @@ class FileDuplicateSearchBinaryMode:
     def search(self):        
         firstDuplicate = False        
         #---initiate search for duplicates
-        totalFolders = len(self.folderPaths)
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
             filenames = self.filesInFolder[folderOrdinal]
             path = self.folderPaths[folderOrdinal]
             if path == self.folderForDuplicateFiles:#don't search an existing duplicates folder
                 continue
-            print('Searching in ', path)   
-            totalFilesInFolder = len(filenames)         
+            print('Searching in ', path)                
             for fileOrdinal in range(len(filenames)):#for each file in the folder
                 duplicateOrdinal = 0
                 filesize = self.fileSizes[folderOrdinal][fileOrdinal]
                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
                 if filename == GlobalConstants.alreadyProcessedFile:
                     continue
-                print("Processing file ", fileOrdinal, "/", totalFilesInFolder, " in folder ", folderOrdinal, "/", totalFolders)                    
-                #---compare with all files                                
-                for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder              
+                #---compare with all files
+                for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder
                     filenamesToCompare = self.filesInFolder[folderOrdinalToCompare]
                     pathToCompare = self.folderPaths[folderOrdinalToCompare] 
                     if pathToCompare == self.folderForDuplicateFiles:#don't search an existing duplicates folder
-                        continue
+                        continue                     
+                    #print('Comparing in ', pathToCompare)                        
+                    print("filenames: ", str(filenamesToCompare))
                     for fileOrdinalToCompare in range(len(filenamesToCompare)):#for each file in the folder
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
                         if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
@@ -508,27 +509,24 @@ class ImageDuplicateSearch:
     def search(self):        
         firstDuplicate = False        
         #---initiate search for duplicates
-        totalFolders = len(self.folderPaths)
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
             filenames = self.filesInFolder[folderOrdinal]
             path = self.folderPaths[folderOrdinal]
             if path == self.folderForDuplicateFiles:#don't search an existing duplicates folder
                 continue
-            print('Searching in ', path) 
-            totalFilesInFolder = len(filenames)           
+            print('Searching in ', path)                
             for fileOrdinal in range(len(filenames)):#for each file in the folder
                 duplicateOrdinal = 0
                 #filesize = self.fileSizes[folderOrdinal][fileOrdinal]
                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
                 if filename == GlobalConstants.alreadyProcessedFile:
                     continue
-                print("Processing file ", fileOrdinal, "/", totalFilesInFolder, " in folder ", folderOrdinal, "/", totalFolders)                    
                 #---compare with all files
                 for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder
                     filenamesToCompare = self.filesInFolder[folderOrdinalToCompare]
                     pathToCompare = self.folderPaths[folderOrdinalToCompare] 
                     if pathToCompare == self.folderForDuplicateFiles:#don't search an existing duplicates folder
-                        continue                       
+                        continue
                     #print('Comparing in ', pathToCompare)                        
                     for fileOrdinalToCompare in range(len(filenamesToCompare)):#for each file in the folder
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
@@ -596,11 +594,10 @@ class FileSearchDeleteSpecifiedFiles:
         self.reports.add("Files to delete: " + str(filesToDelete))
         
         #---initiate search for duplicates
-        totalFolders = len(self.folderPaths)
-        for folderOrdinal in range(len(self.folderPaths)):#for each folder        
+        for folderOrdinal in range(len(self.folderPaths)):#for each folder
             #filenames = self.filesInFolder[folderOrdinal]
             path = self.folderPaths[folderOrdinal]
-            print('Processing folder', folderOrdinal, '/', totalFolders, '. Searching in ', path)
+            print('Searching in ', path)
             if not caseSensitive:
                 filesToDelete = [x.lower() for x in filesToDelete]
             filesToDelete = [x.strip() for x in filesToDelete]
