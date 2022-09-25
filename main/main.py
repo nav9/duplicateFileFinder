@@ -1,5 +1,5 @@
 '''
-File duplicate finder. Special mode for comparing images too.
+File duplicate finder. With a special mode for comparing images too.
 Created on 19-Feb-2021
 @author: Navin
 '''
@@ -12,9 +12,20 @@ from PIL import Image
 import imagehash
 import fnmatch #for matching wildcards
 #import filetype
+import logging
+from logging.handlers import RotatingFileHandler
+
+#TODO: shift log file config to file
+logFileName = 'logs_duplicateFinder.log'
+loggingLevel = logging.INFO
+logging.basicConfig(level=loggingLevel, format='%(levelname)s %(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S') #outputs to console
+#log = logging.getLogger(__name__)
+handler = RotatingFileHandler(logFileName, maxBytes=2000000, backupCount=2)#TODO: Shift to config file
+handler.formatter = logging.Formatter(fmt='%(levelname)s %(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S') #setting this was necessary to get it to write the format to file. Without this, only the message part of the log would get written to the file
+logging.getLogger().addHandler(handler)
+logging.getLogger().setLevel(loggingLevel)
 
 #TODO: Check for an existing "duplicateFilesFolder", and either ignore it or decide what to do about it.
-#TODO: Use a logger instead of the current print output
 #TODO: create a memory of the last location that was searched, and show that as the default when doing a folder search
 #TODO: Use a CI to automatically run tests and to use pyinstaller to generate an installer file
 #TODO: Add an option to undo the duplicate file move
@@ -73,9 +84,9 @@ class FileOperations:
         #TODO: What about "file-like objects"
         #TODO: Encrypted containers?
         folderPaths = []; filesInFolder = []; fileSizes = []
-        print("Obtaining a list of folders and files...")
+        logging.info("Obtaining a list of folders and files...")
         result = os.walk(folderToConsider, followlinks=False) #followlinks=False allows skipping symlinks. It's False by default. Just making it obvious here
-        print("Walking to collect names of files in this folder: ", folderToConsider)
+        logging.info("Walking to collect names of files in this folder: " + str(folderToConsider))
         for oneFolder in result:
             folderPath = self.folderSlash(oneFolder[self.FULL_FOLDER_PATH])
             folderPaths.append(folderPath)
@@ -150,7 +161,7 @@ class FileOperations:
                     if not chunk1:#if chunk is of zero bytes (nothing more to read from file), return True because chunk2 will also be zero. If it wasn't zero, the previous if would've been False
                         return True       
         except FileNotFoundError:
-            print("One of these files had a FileNotFoundError. Skipping: ", filename1, filename2) #the file is not found either because it's a broken link or the file does not actually exist
+            logging.error("One of these files had a FileNotFoundError. Skipping: " + str(filename1) + str(filename2)) #the file is not found either because it's a broken link or the file does not actually exist
     
 #-----------------------------------------------             
 #-----------------------------------------------
@@ -183,7 +194,7 @@ class DropdownChoicesMenu:
     def getUserChoice(self):
         retVal = None
         if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL:
-            print('Exiting')
+            logging.info('Exiting')
             exit()
             #retVal = FileSearchModes.choice_None
         else:
@@ -219,7 +230,7 @@ class FolderChoiceMenu:
         retVal = None
         if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.LIST_START] == '':
             #retVal = FileSearchModes.choice_None
-            print('Exiting')
+            logging.info('Exiting')
             exit()
         else:
             folderChosen = self.values[GlobalConstants.LIST_START]
@@ -274,7 +285,7 @@ class FileChoiceMenu:
         fileChosen = None
         if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.LIST_START] == '':
             #retVal = FileSearchModes.choice_None
-            print('Exiting')
+            logging.info('Exiting')
             exit()
         else:
             fileChosen = self.values[GlobalConstants.LIST_START]
@@ -305,8 +316,8 @@ class StringInputMenu:
         filesChosen = self.values[GlobalConstants.LIST_START]
         if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or filesChosen == '':
             if filesChosen == '':
-                print('No filename was mentioned')
-            print('Exiting')
+                logging.error('No filename was mentioned')
+            logging.info('Exiting')
             exit()
         return filesChosen.split(',')
     
@@ -329,10 +340,10 @@ class YesNoMenu:
     def getUserChoice(self):
         answer = False #by default, the answer is "No"
         if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT:
-            print('Exited. No choice made')
+            logging.info('Exited. No choice made')
             exit()
         if self.event == GlobalConstants.YES_BUTTON:
-            print('CASE SENSITIVE')
+            logging.info('CASE SENSITIVE')
             answer = True
         return answer
         
@@ -354,7 +365,7 @@ class Reports:
         
     def generateReport(self, shouldWriteReportToFile = False):
         for aLine in self.report:
-            print(aLine)
+            logging.info(aLine)
         if shouldWriteReportToFile:
             self.reportFilenameWithPath = self.folderToStore + "Report_" + str(datetime.datetime.now()) + ".txt"
             self.fileOps.writeLinesToFile(self.reportFilenameWithPath, self.report)
@@ -391,7 +402,7 @@ class Undo:
             self.fileOps.moveFile(currentPath, currentFilename, oldPath, oldFilename)
             numberOfUndos = numberOfUndos + 1
         self.fileOps.deleteFile(undoFilenameWithPath)
-        print('Finished '+ str(numberOfUndos) +' undo operations. Deleted file: ', undoFilenameWithPath)
+        logging.info('Finished '+ str(numberOfUndos) + ' undo operations. Deleted file: ' + str(undoFilenameWithPath))
         sg.popup("Completed undo operations", keep_on_top=True)
     
         
@@ -421,7 +432,7 @@ class FileDuplicateSearchBinaryMode:
             path = self.folderPaths[folderOrdinal]
             if path == self.folderForDuplicateFiles:#don't search an existing duplicates folder
                 continue
-            print('Searching in ', path) 
+            logging.info('Searching in ' + str(path))
             totalFilesInFolder = len(filenames)               
             for fileOrdinal in range(len(filenames)):#for each file in the folder
                 duplicateOrdinal = 0
@@ -429,15 +440,13 @@ class FileDuplicateSearchBinaryMode:
                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
                 if filename == GlobalConstants.alreadyProcessedFile:
                     continue
-                print("Processing file ", fileOrdinal, "/", totalFilesInFolder, " in folder ", folderOrdinal, "/", totalFolders)
+                logging.info("Processing file " + str(fileOrdinal) + "/" + str(totalFilesInFolder) + " in folder " + str(folderOrdinal) + "/" + str(totalFolders))
                 #---compare with all files
                 for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder
                     filenamesToCompare = self.filesInFolder[folderOrdinalToCompare]
                     pathToCompare = self.folderPaths[folderOrdinalToCompare] 
                     if pathToCompare == self.folderForDuplicateFiles:#don't search an existing duplicates folder
                         continue                     
-                    #print('Comparing in ', pathToCompare)                        
-                    #print("filenames: ", str(filenamesToCompare))
                     for fileOrdinalToCompare in range(len(filenamesToCompare)):#for each file in the folder
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
                         if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
@@ -490,10 +499,6 @@ class ImageHashComparison:
     def compareIfExactlySame(self, image, imageToCompare):
         hash1 = imagehash.average_hash(Image.open(image), self.hash_size)
         hash2 = imagehash.average_hash(Image.open(imageToCompare), self.hash_size)
-#         print('Image1:', image)
-#         print('Image2:', imageToCompare)
-#         print("Hashes: ",hash1, hash2)
-#         print('-----------------------')
         return hash1 == hash2
     
 class ImageDuplicateSearch:
@@ -518,7 +523,7 @@ class ImageDuplicateSearch:
             path = self.folderPaths[folderOrdinal]
             if path == self.folderForDuplicateFiles:#don't search an existing duplicates folder
                 continue
-            print('Searching in ', path) 
+            logging.info('Searching in ' + str(path))
             totalFilesInFolder = len(filenames)               
             for fileOrdinal in range(len(filenames)):#for each file in the folder
                 duplicateOrdinal = 0
@@ -526,14 +531,13 @@ class ImageDuplicateSearch:
                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
                 if filename == GlobalConstants.alreadyProcessedFile:
                     continue
-                print("Processing file ", fileOrdinal, "/", totalFilesInFolder, " in folder ", folderOrdinal, "/", totalFolders)
+                logging.info("Processing file " + str(fileOrdinal) + "/" + str(totalFilesInFolder) + " in folder " + str(folderOrdinal) + "/" + str(totalFolders))
                 #---compare with all files
                 for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder
                     filenamesToCompare = self.filesInFolder[folderOrdinalToCompare]
                     pathToCompare = self.folderPaths[folderOrdinalToCompare] 
                     if pathToCompare == self.folderForDuplicateFiles:#don't search an existing duplicates folder
                         continue
-                    #print('Comparing in ', pathToCompare)                        
                     for fileOrdinalToCompare in range(len(filenamesToCompare)):#for each file in the folder
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
                         if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
@@ -548,7 +552,6 @@ class ImageDuplicateSearch:
                             fileExtension = fileExtension[1:]#ignores the dot in '.jpg'
                         if fileExtension.lower() not in GlobalConstants.supportedImageFormats:#file is not an image or is not a supported image format
                             self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
-                            #print('already processed')
                             continue                                                                                   
                         #---now compare
                         filesAreSame = self.imageComparison.compareIfExactlySame(path + filename, pathToCompare + filenameToCompare)
@@ -604,13 +607,13 @@ class FileSearchDeleteSpecifiedFiles:
         for folderOrdinal in range(len(self.folderPaths)):#for each folder
             #filenames = self.filesInFolder[folderOrdinal]
             path = self.folderPaths[folderOrdinal]
-            print('Processing folder', folderOrdinal, '/', totalFolders, '. Searching in ', path)
+            logging.info('Processing folder' + str(folderOrdinal) + '/' + str(totalFolders) + '. Searching in ' + str(path))
             if not caseSensitive:
                 filesToDelete = [x.lower() for x in filesToDelete]
             filesToDelete = [x.strip() for x in filesToDelete]
-            print('filesToDelete:', filesToDelete)
+            logging.info('filesToDelete:' + str(filesToDelete))
             for theFileToDelete in filesToDelete:
-                print("Searching for files/pattern: ", theFileToDelete)
+                logging.info("Searching for files/pattern: " + str(theFileToDelete))
                 
                 filenameMatchingMode = FilenameMatching.fullString #the default for an exact filename match         
                 if "*" in theFileToDelete:#TODO: May need checks to verify if the wildcard pattern is ok
@@ -734,11 +737,11 @@ if __name__ == '__main__':
         whichFile = FileChoiceMenu() #get folder in which to start recursively searching and deleting files
         whichFile.showUserTheMenu(topText, bottomText)
         fileChosen = whichFile.getUserChoice()
-        print('chose: ',fileChosen)
+        logging.info('selected: ' + str(fileChosen))
         undoer = Undo("", fileOps)
         undoer.performUndo(fileChosen)
     
-    print('Program ended')
+    logging.info('Program ended')
     
     
     
