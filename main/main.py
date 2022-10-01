@@ -613,7 +613,7 @@ class FileSearchDeleteSpecifiedFiles:
         self.fileOps = fileOps
         self.baseFolder = foldername
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
-        self.reports = Reports(self.baseFolder)
+        self.reports = Reports(self.baseFolder, fileOps)
         self.reports.add('Searching in: '+self.baseFolder)
         self.atLeastOneFileFound = False
     
