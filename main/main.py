@@ -44,13 +44,14 @@ logging.getLogger().setLevel(loggingLevel)
 class GlobalConstants:
     duplicateFilesFolder = "duplicateFilesFolder/"
     duplicateImagesFolder = "duplicateImagesFolder/"
+    previouslySelectedFolderForDuplicatesCheck = "previouslySelectedFolder.txt"
     EVENT_CANCEL = 'Cancel'
     EVENT_EXIT = 'Cancel'
     YES_BUTTON = 'Yes'
     NO_BUTTON = 'No'
     alreadyProcessedFile = "."
     supportedImageFormats = ['jpg', 'jpeg', 'png', 'webp'] #let all extensions mentioned here be in lower case. More can be added after testing.
-    LIST_START = 0
+    FIRST_POSITION_IN_LIST = 0
 
 class FileSearchModes:
     choice_None = 'Exit'
@@ -142,14 +143,15 @@ class FileOperations:
 
     """ Move file to another directory. Renaming while moving is possible """
     def moveFile(self, existingPath, existingFilename, newPath, newFilename):
-        shutil.move(existingPath + existingFilename, newPath + newFilename)    
+        try:
+            shutil.move(existingPath + existingFilename, newPath + newFilename)    
+        except FileNotFoundError:
+            logging.error("Could not find file: " + existingPath + existingFilename)
     
     """ Adds a slash at the end of the folder name if it isn't already present """
     def folderSlash(self, folderName):
-        if folderName.endswith('/') == False: 
-            folderName = folderName + '/' 
-        return folderName   
-    
+        return os.path.join(folderName, "") #https://stackoverflow.com/questions/2736144/python-add-trailing-slash-to-directory-string-os-independently
+
     def compareEntireFiles(self, filename1, filename2):
         try:
             with open(filename1, 'rb') as filePointer1, open(filename2, 'rb') as filePointer2:
@@ -161,7 +163,7 @@ class FileOperations:
                     if not chunk1:#if chunk is of zero bytes (nothing more to read from file), return True because chunk2 will also be zero. If it wasn't zero, the previous if would've been False
                         return True       
         except FileNotFoundError:
-            logging.error("One of these files had a FileNotFoundError. Skipping: " + str(filename1) + str(filename2)) #the file is not found either because it's a broken link or the file does not actually exist
+            logging.error("One of these files had a FileNotFoundError. Skipping: " + filename1 + filename2) #the file is not found either because it's a broken link or the file does not actually exist
     
 #-----------------------------------------------             
 #-----------------------------------------------
@@ -198,7 +200,7 @@ class DropdownChoicesMenu:
             exit()
             #retVal = FileSearchModes.choice_None
         else:
-            retVal = self.values[GlobalConstants.LIST_START]    
+            retVal = self.values[GlobalConstants.FIRST_POSITION_IN_LIST]    
         return retVal #returns one of the FileSearchModes
 
 class FolderChoiceMenu:
@@ -207,7 +209,7 @@ class FolderChoiceMenu:
         self.values = None
         self.horizontalSepLen = 35    
         self.fileOps = fileOps  
-        self.folderNameStorageFile = "previouslySelectedFolder.txt"
+        self.folderNameStorageFile = GlobalConstants.previouslySelectedFolderForDuplicatesCheck
         self.previouslySelectedFolder = None
     
     def showUserTheMenu(self, topText, bottomText):
@@ -228,12 +230,12 @@ class FolderChoiceMenu:
     
     def getUserChoice(self):
         retVal = None
-        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.LIST_START] == '':
+        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.FIRST_POSITION_IN_LIST] == '':
             #retVal = FileSearchModes.choice_None
             logging.info('Exiting')
             exit()
         else:
-            folderChosen = self.values[GlobalConstants.LIST_START]
+            folderChosen = self.values[GlobalConstants.FIRST_POSITION_IN_LIST]
             if self.fileOps.isThisValidDirectory(folderChosen):
                 retVal = self.fileOps.folderSlash(folderChosen)
                 self.setThisFolderAsThePreviouslySelectedFolder(retVal)
@@ -247,7 +249,7 @@ class FolderChoiceMenu:
     def checkForPreviouslySelectedFolder(self):
         if self.fileOps.isValidFile(self.folderNameStorageFile):#there is a file storing the previously selected folder
             lines = self.fileOps.readFromFile(self.folderNameStorageFile)
-            self.previouslySelectedFolder = lines[GlobalConstants.LIST_START]
+            self.previouslySelectedFolder = lines[GlobalConstants.FIRST_POSITION_IN_LIST]
             if not self.fileOps.isThisValidDirectory(self.previouslySelectedFolder):
                 self.previouslySelectedFolder = None
         else:
@@ -261,17 +263,21 @@ class FolderChoiceMenu:
         self.fileOps.writeLinesToFile(self.folderNameStorageFile, nameAsList)
 
 class FileChoiceMenu:
-    def __init__(self):
+    def __init__(self, fileOps):
         self.event = None
         self.values = None
-        self.horizontalSepLen = 35       
+        self.horizontalSepLen = 35 
+        self.fileOps = fileOps       
+        self.folderNameStorageFile = GlobalConstants.previouslySelectedFolderForDuplicatesCheck   
+        self.previouslySelectedFolder = None
     
     def showUserTheMenu(self, topText, bottomText):
         #---choose mode of running
         layout = []
         for s in topText:
             layout.append([sg.Text(s, justification='left')])
-        layout.append([sg.Input(), sg.FileBrowse()])
+        self.checkForPreviouslySelectedFolder()
+        layout.append([sg.Input(), sg.FileBrowse(initial_folder = self.previouslySelectedFolder)])
         for s in bottomText:
             layout.append([sg.Text(s, text_color='grey', justification='left')])        
         layout.append([sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')])
@@ -283,13 +289,26 @@ class FileChoiceMenu:
     
     def getUserChoice(self):
         fileChosen = None
-        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.LIST_START] == '':
+        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.FIRST_POSITION_IN_LIST] == '':
             #retVal = FileSearchModes.choice_None
             logging.info('Exiting')
             exit()
         else:
-            fileChosen = self.values[GlobalConstants.LIST_START]
+            fileChosen = self.values[GlobalConstants.FIRST_POSITION_IN_LIST]
         return fileChosen  
+     
+    def checkForPreviouslySelectedFolder(self):
+        if self.fileOps.isValidFile(self.folderNameStorageFile):#there is a file storing the previously selected folder
+            lines = self.fileOps.readFromFile(self.folderNameStorageFile)
+            self.previouslySelectedFolder = lines[GlobalConstants.FIRST_POSITION_IN_LIST]
+            duplicatesFolder = os.path.join(self.previouslySelectedFolder, GlobalConstants.duplicateFilesFolder, "") #the last quotes at the end will add a trailing slash to the last folder
+            if self.fileOps.isThisValidDirectory(self.previouslySelectedFolder):
+                if self.fileOps.isThisValidDirectory(duplicatesFolder):#check if a duplicates folder is present
+                    self.previouslySelectedFolder = duplicatesFolder                
+            else: 
+                self.previouslySelectedFolder = None
+        else:
+            self.previouslySelectedFolder = None    
     
 class StringInputMenu:
     def __init__(self):
@@ -313,7 +332,7 @@ class StringInputMenu:
         window.close()
     
     def getUserChoice(self):
-        filesChosen = self.values[GlobalConstants.LIST_START]
+        filesChosen = self.values[GlobalConstants.FIRST_POSITION_IN_LIST]
         if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or filesChosen == '':
             if filesChosen == '':
                 logging.error('No filename was mentioned')
@@ -378,7 +397,7 @@ class Undo:
         self.whatToUndo = []
         self.separator = ','
         self.folderToStore = folderToStore
-        self.fileOps = fileOps
+        self.fileOps = fileOps        
     
     def add(self, oldPath, oldFilename, newPath, newFilename):
         data = oldPath + self.separator + oldFilename + self.separator + newPath + self.separator + newFilename
@@ -404,8 +423,7 @@ class Undo:
         self.fileOps.deleteFile(undoFilenameWithPath)
         logging.info('Finished '+ str(numberOfUndos) + ' undo operations. Deleted file: ' + str(undoFilenameWithPath))
         sg.popup("Completed undo operations", keep_on_top=True)
-    
-        
+            
 #-----------------------------------------------             
 #-----------------------------------------------
 #------------- PRIMARY OPERATIONS --------------
@@ -734,7 +752,7 @@ if __name__ == '__main__':
         #---get foldername
         topText = ['Select the ".undo" file for undoing']        
         bottomText = ['Undo cannot be done for deleted files']
-        whichFile = FileChoiceMenu() #get folder in which to start recursively searching and deleting files
+        whichFile = FileChoiceMenu(fileOps) #get folder in which to start recursively searching and deleting files
         whichFile.showUserTheMenu(topText, bottomText)
         fileChosen = whichFile.getUserChoice()
         logging.info('selected: ' + str(fileChosen))
