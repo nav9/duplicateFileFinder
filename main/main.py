@@ -25,6 +25,7 @@ handler.formatter = logging.Formatter(fmt='%(levelname)s %(asctime)s - %(message
 logging.getLogger().addHandler(handler)
 logging.getLogger().setLevel(loggingLevel)
 
+#TODO: After moving duplicates, delete all empty folders, starting from the leaf directories. This deletion info would also have to be included for undo.
 #TODO: Check for an existing "duplicateFilesFolder", and either ignore it or decide what to do about it.
 #TODO: create a memory of the last location that was searched, and show that as the default when doing a folder search
 #TODO: Use a CI to automatically run tests and to use pyinstaller to generate an installer file
@@ -146,12 +147,13 @@ class FileOperations:
         try:
             shutil.move(existingPath + existingFilename, newPath + newFilename)    
         except FileNotFoundError:
-            logging.error("Could not find file: " + existingPath + existingFilename)
+            logging.error("Could not find file: " + existingPath + existingFilename + " when trying to move it to " + newPath + newFilename)
     
     """ Adds a slash at the end of the folder name if it isn't already present """
     def folderSlash(self, folderName):
         return os.path.join(folderName, "") #https://stackoverflow.com/questions/2736144/python-add-trailing-slash-to-directory-string-os-independently
 
+    """ Binary comparison is performed chunk by chunk. If any chunk mismatches, the comparison is stopped and the function returns """
     def compareEntireFiles(self, filename1, filename2):
         try:
             with open(filename1, 'rb') as filePointer1, open(filename2, 'rb') as filePointer2:
@@ -163,7 +165,7 @@ class FileOperations:
                     if not chunk1:#if chunk is of zero bytes (nothing more to read from file), return True because chunk2 will also be zero. If it wasn't zero, the previous if would've been False
                         return True       
         except FileNotFoundError:
-            logging.error("One of these files had a FileNotFoundError. Skipping: " + filename1 + filename2) #the file is not found either because it's a broken link or the file does not actually exist
+            logging.error("One of these files had a FileNotFoundError. Skipping: " + filename1 + " or " + filename2) #the file is not found either because it's a broken link or the file does not actually exist
     
 #-----------------------------------------------             
 #-----------------------------------------------
