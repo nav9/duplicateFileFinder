@@ -5,7 +5,6 @@ Created on 19-Feb-2021
 '''
 
 import PySimpleGUI as sg
-import os
 import shutil #for moving file
 import datetime
 from PIL import Image
@@ -14,6 +13,8 @@ import fnmatch #for matching wildcards
 #import filetype
 import logging
 from logging.handlers import RotatingFileHandler
+from programParameters import parameters as param
+from fileAndFolder import fileFolderOperations as ops
 
 #TODO: shift log file config to file
 logFileName = 'logs_duplicateFinder.log'
@@ -36,137 +37,9 @@ logging.getLogger().setLevel(loggingLevel)
 #TODO: Recognize things like git folders or entire folders that are duplicate
 #TODO: Introduce a menu option for comparing sentences of a file and removing duplicate sentences. This helps cosolidate any text notes or even phone contacts.
 
-#-----------------------------------------------             
-#-----------------------------------------------
-#---------------- PARAMETERS -------------------
-#-----------------------------------------------
-#-----------------------------------------------
 
-class GlobalConstants:
-    duplicateFilesFolder = "duplicateFilesFolder/"
-    duplicateImagesFolder = "duplicateImagesFolder/"
-    previouslySelectedFolderForDuplicatesCheck = "previouslySelectedFolder.txt"
-    EVENT_CANCEL = 'Cancel'
-    EVENT_EXIT = 'Cancel'
-    YES_BUTTON = 'Yes'
-    NO_BUTTON = 'No'
-    alreadyProcessedFile = "."
-    supportedImageFormats = ['jpg', 'jpeg', 'png', 'webp'] #let all extensions mentioned here be in lower case. More can be added after testing.
-    FIRST_POSITION_IN_LIST = 0
-
-class FileSearchModes:
-    choice_None = 'Exit'
-    choice_fileBinary = 'Duplicate file segregation'
-    choice_imagePixels = 'Duplicate image segregation'    
-    choice_residualFiles = 'Delete files (like Thumbs.db etc.)'
-    choice_undoFileMove = 'Undo files that were moved and renamed'
-    
-class FilenameMatching:
-    fullString = "fullString"
-    wildcard = "wildcard"
     
 
-#-----------------------------------------------             
-#-----------------------------------------------
-#------------------ FILE OPS -------------------
-#-----------------------------------------------
-#-----------------------------------------------
-
-class FileOperations:
-    def __init__(self):
-        self.FULL_FOLDER_PATH = 0
-        #self.SUBDIRECTORIES = 1
-        self.FILES_IN_FOLDER = 2
-        self.CHUNK_SIZE_FOR_BINARY_FILE_COMPARISON = 8 * 1024     
-    
-    """ Get names of files in each folder and subfolder. Also get sizes of files """
-    def getFileNamesOfFilesInAllFoldersAndSubfolders(self, folderToConsider): 
-        #TODO: check if folder exists
-        #TODO: read-only files, files without permission to read, files that can't be moved, corrupted files
-        #TODO: What about "file-like objects"
-        #TODO: Encrypted containers?
-        folderPaths = []; filesInFolder = []; fileSizes = []
-        logging.info("Obtaining a list of folders and files...")
-        result = os.walk(folderToConsider, followlinks=False) #followlinks=False allows skipping symlinks. It's False by default. Just making it obvious here
-        logging.info("Walking to collect names of files in this folder: " + str(folderToConsider))
-        for oneFolder in result:
-            folderPath = self.folderSlash(oneFolder[self.FULL_FOLDER_PATH])
-            folderPaths.append(folderPath)
-            #subdir = oneFolder[self.SUBDIRECTORIES]
-            filesInThisFolder = oneFolder[self.FILES_IN_FOLDER]
-            filesNotFound = []
-            sizeOfFiles = []
-            for filename in filesInThisFolder:
-                try:
-                    fileProperties = os.stat(folderPath + filename)
-                    sizeOfFiles.append(fileProperties.st_size)
-                except FileNotFoundError:
-                    filesNotFound.append(filename)
-                    pass #ignore files that are not found. It may be a broken symlink or a file that was deleted in-between or a file on a connected device that got disconnected
-            filesInThisFolder = [filename for filename in filesInThisFolder if filename not in filesNotFound] #remove any files not found, from the list
-            fileSizes.append(sizeOfFiles)
-            filesInFolder.append(filesInThisFolder)            
-        return folderPaths, filesInFolder, fileSizes #returns as [fullFolderPath1, fullFolderPath2, ...], [[filename1, filename2, filename3, ...], [], []], [[filesize1, filesize2, filesize3, ...], [], []]
-   
-    def isValidFile(self, filenameWithPath):
-        return os.path.isfile(filenameWithPath)   
-    
-    def getFilenameAndExtension(self, filenameOrPathWithFilename):
-        filename, fileExtension = os.path.splitext(filenameOrPathWithFilename)
-        return filename, fileExtension
-    
-    def deleteFile(self, filenameWithPath):
-        os.remove(filenameWithPath) #TODO: check if file exists before deleting
-        
-    def writeLinesToFile(self, filenameWithPath, report):
-        fileHandle = open(filenameWithPath, 'w')
-        for line in report:
-            fileHandle.write(line)
-            fileHandle.write("\n")
-        fileHandle.close()
-        
-    def readFromFile(self, filenameWithPath):
-        with open(filenameWithPath) as f:
-            lines = f.read().splitlines()#TODO: try catch
-        return lines              
-    
-    def createDirectoryIfNotExisting(self, folder):
-        if not os.path.exists(folder): 
-            try: os.makedirs(folder)
-            except FileExistsError:#in case there's a race condition where some other process creates the directory before makedirs is called
-                pass
-            
-    def getCurrentDirectory(self):
-        return os.getcwd()
-    
-    def isThisValidDirectory(self, folderpath):
-        return os.path.exists(folderpath)
-
-    """ Move file to another directory. Renaming while moving is possible """
-    def moveFile(self, existingPath, existingFilename, newPath, newFilename):
-        try:
-            shutil.move(existingPath + existingFilename, newPath + newFilename)    
-        except FileNotFoundError:
-            logging.error("Could not find file: " + existingPath + existingFilename + " when trying to move it to " + newPath + newFilename)
-    
-    """ Adds a slash at the end of the folder name if it isn't already present """
-    def folderSlash(self, folderName):
-        return os.path.join(folderName, "") #https://stackoverflow.com/questions/2736144/python-add-trailing-slash-to-directory-string-os-independently
-
-    """ Binary comparison is performed chunk by chunk. If any chunk mismatches, the comparison is stopped and the function returns """
-    def compareEntireFiles(self, filename1, filename2):
-        try:
-            with open(filename1, 'rb') as filePointer1, open(filename2, 'rb') as filePointer2:
-                while True:
-                    chunk1 = filePointer1.read(self.CHUNK_SIZE_FOR_BINARY_FILE_COMPARISON)#TODO: try catch
-                    chunk2 = filePointer2.read(self.CHUNK_SIZE_FOR_BINARY_FILE_COMPARISON)
-                    if chunk1 != chunk2:
-                        return False
-                    if not chunk1:#if chunk is of zero bytes (nothing more to read from file), return True because chunk2 will also be zero. If it wasn't zero, the previous if would've been False
-                        return True       
-        except FileNotFoundError:
-            logging.error("One of these files had a FileNotFoundError. Skipping: " + filename1 + " or " + filename2) #the file is not found either because it's a broken link or the file does not actually exist
-    
 #-----------------------------------------------             
 #-----------------------------------------------
 #-------------------- MENUS --------------------
@@ -189,7 +62,7 @@ class DropdownChoicesMenu:
             layout.append([sg.Text(text)])
         layout.append([sg.Combo(dropdownOptions, default_value=defaultDropDownOption)])
         layout.append([sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')])
-        layout.append([sg.Button(GlobalConstants.EVENT_CANCEL), sg.OK()])
+        layout.append([sg.Button(param.GlobalConstants.EVENT_CANCEL), sg.OK()])
         
         window = sg.Window('', layout, element_justification='right', grab_anywhere=True) #The justification was kept "right" because the user clicks the arrow of the dropdown on the right side and since the OK/Cancel buttons were usually on the left side, it was a pain to have to drag the mouse pointer all the way to the left. Since I couldn't find a way to justify the buttons to the right, I had to justify all elements to the right. The better way is to justify the text to the left and justify the buttons to the right. If PySimpleGUI is improved to support this, a better justification can be implemented in this program.  
         self.event, self.values = window.read()     
@@ -197,12 +70,12 @@ class DropdownChoicesMenu:
         
     def getUserChoice(self):
         retVal = None
-        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL:
+        if self.event == sg.WIN_CLOSED or self.event == param.GlobalConstants.EVENT_EXIT or self.event == param.GlobalConstants.EVENT_CANCEL:
             logging.info('Exiting')
             exit()
             #retVal = FileSearchModes.choice_None
         else:
-            retVal = self.values[GlobalConstants.FIRST_POSITION_IN_LIST]    
+            retVal = self.values[param.GlobalConstants.FIRST_POSITION_IN_LIST]    
         return retVal #returns one of the FileSearchModes
 
 class FolderChoiceMenu:
@@ -211,7 +84,7 @@ class FolderChoiceMenu:
         self.values = None
         self.horizontalSepLen = 35    
         self.fileOps = fileOps  
-        self.folderNameStorageFile = GlobalConstants.previouslySelectedFolderForDuplicatesCheck
+        self.folderNameStorageFile = param.GlobalConstants.previouslySelectedFolderForDuplicatesCheck
         self.previouslySelectedFolder = None
     
     def showUserTheMenu(self, topText, bottomText):
@@ -224,7 +97,7 @@ class FolderChoiceMenu:
         for s in bottomText:
             layout.append([sg.Text(s, text_color = 'grey', justification = 'left')])        
         layout.append([sg.Text('_' * self.horizontalSepLen, justification = 'right', text_color = 'black')])
-        layout.append([sg.Button(GlobalConstants.EVENT_CANCEL), sg.Button('Ok')])
+        layout.append([sg.Button(param.GlobalConstants.EVENT_CANCEL), sg.Button('Ok')])
         
         window = sg.Window('', layout, grab_anywhere = False, element_justification = 'right')    
         self.event, self.values = window.read()        
@@ -232,17 +105,17 @@ class FolderChoiceMenu:
     
     def getUserChoice(self):
         retVal = None
-        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.FIRST_POSITION_IN_LIST] == '':
+        if self.event == sg.WIN_CLOSED or self.event == param.GlobalConstants.EVENT_EXIT or self.event == param.GlobalConstants.EVENT_CANCEL or self.values[param.GlobalConstants.FIRST_POSITION_IN_LIST] == '':
             #retVal = FileSearchModes.choice_None
             logging.info('Exiting')
             exit()
         else:
-            folderChosen = self.values[GlobalConstants.FIRST_POSITION_IN_LIST]
+            folderChosen = self.values[param.GlobalConstants.FIRST_POSITION_IN_LIST]
             if self.fileOps.isThisValidDirectory(folderChosen):
                 retVal = self.fileOps.folderSlash(folderChosen)
                 self.setThisFolderAsThePreviouslySelectedFolder(retVal)
             else:
-                retVal = FileSearchModes.choice_None
+                retVal = param.FileSearchModes.choice_None
 #         if retVal == FileSearchModes.choice_None:
 #             sg.popup('Please select a valid folder next time. Exiting now.')
 #             exit()    
@@ -251,7 +124,7 @@ class FolderChoiceMenu:
     def checkForPreviouslySelectedFolder(self):
         if self.fileOps.isValidFile(self.folderNameStorageFile):#there is a file storing the previously selected folder
             lines = self.fileOps.readFromFile(self.folderNameStorageFile)
-            self.previouslySelectedFolder = lines[GlobalConstants.FIRST_POSITION_IN_LIST]
+            self.previouslySelectedFolder = lines[param.GlobalConstants.FIRST_POSITION_IN_LIST]
             if not self.fileOps.isThisValidDirectory(self.previouslySelectedFolder):
                 self.previouslySelectedFolder = None
         else:
@@ -270,7 +143,7 @@ class FileChoiceMenu:
         self.values = None
         self.horizontalSepLen = 35 
         self.fileOps = fileOps       
-        self.folderNameStorageFile = GlobalConstants.previouslySelectedFolderForDuplicatesCheck   
+        self.folderNameStorageFile = param.GlobalConstants.previouslySelectedFolderForDuplicatesCheck   
         self.previouslySelectedFolder = None
     
     def showUserTheMenu(self, topText, bottomText):
@@ -283,7 +156,7 @@ class FileChoiceMenu:
         for s in bottomText:
             layout.append([sg.Text(s, text_color='grey', justification='left')])        
         layout.append([sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')])
-        layout.append([sg.Button(GlobalConstants.EVENT_CANCEL), sg.Button('Ok')])
+        layout.append([sg.Button(param.GlobalConstants.EVENT_CANCEL), sg.Button('Ok')])
         
         window = sg.Window('', layout, grab_anywhere=False, element_justification='right')    
         self.event, self.values = window.read()        
@@ -291,19 +164,19 @@ class FileChoiceMenu:
     
     def getUserChoice(self):
         fileChosen = None
-        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.FIRST_POSITION_IN_LIST] == '':
+        if self.event == sg.WIN_CLOSED or self.event == param.GlobalConstants.EVENT_EXIT or self.event == param.GlobalConstants.EVENT_CANCEL or self.values[GlobalConstants.FIRST_POSITION_IN_LIST] == '':
             #retVal = FileSearchModes.choice_None
             logging.info('Exiting')
             exit()
         else:
-            fileChosen = self.values[GlobalConstants.FIRST_POSITION_IN_LIST]
+            fileChosen = self.values[param.GlobalConstants.FIRST_POSITION_IN_LIST]
         return fileChosen  
      
     def checkForPreviouslySelectedFolder(self):
         if self.fileOps.isValidFile(self.folderNameStorageFile):#there is a file storing the previously selected folder
             lines = self.fileOps.readFromFile(self.folderNameStorageFile)
-            self.previouslySelectedFolder = lines[GlobalConstants.FIRST_POSITION_IN_LIST]
-            duplicatesFolder = os.path.join(self.previouslySelectedFolder, GlobalConstants.duplicateFilesFolder, "") #the last quotes at the end will add a trailing slash to the last folder
+            self.previouslySelectedFolder = lines[param.GlobalConstants.FIRST_POSITION_IN_LIST]
+            duplicatesFolder = os.path.join(self.previouslySelectedFolder, param.GlobalConstants.duplicateFilesFolder, "") #the last quotes at the end will add a trailing slash to the last folder
             if self.fileOps.isThisValidDirectory(self.previouslySelectedFolder):
                 if self.fileOps.isThisValidDirectory(duplicatesFolder):#check if a duplicates folder is present
                     self.previouslySelectedFolder = duplicatesFolder                
@@ -327,15 +200,15 @@ class StringInputMenu:
         for s in bottomText:
             layout.append([sg.Text(s, text_color='grey', justification='left')])        
         layout.append([sg.Text('_' * self.horizontalSepLen, justification='right', text_color='black')])
-        layout.append([sg.Button(GlobalConstants.EVENT_CANCEL), sg.Button('Ok')])
+        layout.append([sg.Button(param.GlobalConstants.EVENT_CANCEL), sg.Button('Ok')])
         
         window = sg.Window('', layout, grab_anywhere=False, element_justification='right')    
         self.event, self.values = window.read()        
         window.close()
     
     def getUserChoice(self):
-        filesChosen = self.values[GlobalConstants.FIRST_POSITION_IN_LIST]
-        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT or self.event == GlobalConstants.EVENT_CANCEL or filesChosen == '':
+        filesChosen = self.values[param.GlobalConstants.FIRST_POSITION_IN_LIST]
+        if self.event == sg.WIN_CLOSED or self.event == param.GlobalConstants.EVENT_EXIT or self.event == param.GlobalConstants.EVENT_CANCEL or filesChosen == '':
             if filesChosen == '':
                 logging.error('No filename was mentioned')
             logging.info('Exiting')
@@ -352,7 +225,7 @@ class YesNoMenu:
         for s in questionText:
             layout.append([sg.Text(s, justification='right')])
 
-        layout.append([sg.Button(GlobalConstants.YES_BUTTON), sg.Button(GlobalConstants.NO_BUTTON)])
+        layout.append([sg.Button(param.GlobalConstants.YES_BUTTON), sg.Button(param.GlobalConstants.NO_BUTTON)])
 
         window = sg.Window('', layout, grab_anywhere=False, element_justification='right')    
         self.event, self.values = window.read()        
@@ -360,10 +233,10 @@ class YesNoMenu:
     
     def getUserChoice(self):
         answer = False #by default, the answer is "No"
-        if self.event == sg.WIN_CLOSED or self.event == GlobalConstants.EVENT_EXIT:
+        if self.event == sg.WIN_CLOSED or self.event == param.GlobalConstants.EVENT_EXIT:
             logging.info('Exited. No choice made')
             exit()
-        if self.event == GlobalConstants.YES_BUTTON:
+        if self.event == param.GlobalConstants.YES_BUTTON:
             logging.info('CASE SENSITIVE')
             answer = True
         return answer
@@ -435,7 +308,7 @@ class FileDuplicateSearchBinaryMode:
     def __init__(self, foldername, fileOps):
         self.fileOps = fileOps
         self.baseFolder = foldername
-        self.folderForDuplicateFiles = self.baseFolder + GlobalConstants.duplicateFilesFolder        
+        self.folderForDuplicateFiles = self.baseFolder + param.GlobalConstants.duplicateFilesFolder        
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
         self.reports = Reports(self.folderForDuplicateFiles, self.fileOps)        
         self.reports.add('Searching in : ' + self.baseFolder)
@@ -458,7 +331,7 @@ class FileDuplicateSearchBinaryMode:
                 duplicateOrdinal = 0
                 filesize = self.fileSizes[folderOrdinal][fileOrdinal]
                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
-                if filename == GlobalConstants.alreadyProcessedFile:
+                if filename == param.GlobalConstants.alreadyProcessedFile:
                     continue
                 logging.info("Processing file " + str(fileOrdinal) + "/" + str(totalFilesInFolder) + " in folder " + str(folderOrdinal) + "/" + str(totalFolders))
                 #---compare with all files
@@ -471,7 +344,7 @@ class FileDuplicateSearchBinaryMode:
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
                         if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
                             continue
-                        if filenameToCompare == GlobalConstants.alreadyProcessedFile:
+                        if filenameToCompare == param.GlobalConstants.alreadyProcessedFile:
                             continue                    
                         filesizeToCompare = self.fileSizes[folderOrdinalToCompare][fileOrdinalToCompare]
                         if filesize == filesizeToCompare:#initial match found based on size
@@ -510,7 +383,7 @@ class FileDuplicateSearchBinaryMode:
         self.undoStore.add(dupFolder, dupFile, self.folderForDuplicateFiles, newFilename)
     
     def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
-        self.filesInFolder[folderOrdinal][fileOrdinal] = GlobalConstants.alreadyProcessedFile            
+        self.filesInFolder[folderOrdinal][fileOrdinal] = param.GlobalConstants.alreadyProcessedFile            
 
 class ImageHashComparison:
     def __init__(self):
@@ -525,7 +398,7 @@ class ImageDuplicateSearch:
     def __init__(self, foldername, fileOps):
         self.fileOps = fileOps
         self.baseFolder = foldername
-        self.folderForDuplicateFiles = self.baseFolder + GlobalConstants.duplicateImagesFolder        
+        self.folderForDuplicateFiles = self.baseFolder + param.GlobalConstants.duplicateImagesFolder        
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
         self.reports = Reports(self.folderForDuplicateFiles)
         self.reports.add('Searching in : ' + self.baseFolder)
@@ -549,7 +422,7 @@ class ImageDuplicateSearch:
                 duplicateOrdinal = 0
                 #filesize = self.fileSizes[folderOrdinal][fileOrdinal]
                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
-                if filename == GlobalConstants.alreadyProcessedFile:
+                if filename == param.GlobalConstants.alreadyProcessedFile:
                     continue
                 logging.info("Processing file " + str(fileOrdinal) + "/" + str(totalFilesInFolder) + " in folder " + str(folderOrdinal) + "/" + str(totalFolders))
                 #---compare with all files
@@ -562,7 +435,7 @@ class ImageDuplicateSearch:
                         filenameToCompare = self.filesInFolder[folderOrdinalToCompare][fileOrdinalToCompare]
                         if folderOrdinal == folderOrdinalToCompare and fileOrdinal == fileOrdinalToCompare:#skip self
                             continue
-                        if filenameToCompare == GlobalConstants.alreadyProcessedFile:
+                        if filenameToCompare == param.GlobalConstants.alreadyProcessedFile:
                             continue
                         _, fileExtension = os.path.splitext(filenameToCompare)
                         if len(fileExtension) == 0:
@@ -570,7 +443,7 @@ class ImageDuplicateSearch:
                             continue
                         else:
                             fileExtension = fileExtension[1:]#ignores the dot in '.jpg'
-                        if fileExtension.lower() not in GlobalConstants.supportedImageFormats:#file is not an image or is not a supported image format
+                        if fileExtension.lower() not in param.GlobalConstants.supportedImageFormats:#file is not an image or is not a supported image format
                             self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
                             continue                                                                                   
                         #---now compare
@@ -607,7 +480,7 @@ class ImageDuplicateSearch:
         self.undoStore.add(dupFolder, dupFile, self.folderForDuplicateFiles, newFilename)
     
     def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
-        self.filesInFolder[folderOrdinal][fileOrdinal] = GlobalConstants.alreadyProcessedFile 
+        self.filesInFolder[folderOrdinal][fileOrdinal] = param.GlobalConstants.alreadyProcessedFile 
         
 
 class FileSearchDeleteSpecifiedFiles:
@@ -616,7 +489,7 @@ class FileSearchDeleteSpecifiedFiles:
         self.baseFolder = foldername
         self.folderPaths, self.filesInFolder, self.fileSizes = self.fileOps.getFileNamesOfFilesInAllFoldersAndSubfolders(self.baseFolder)
         self.reports = Reports(self.baseFolder, fileOps)
-        self.reports.add('Searching in: '+self.baseFolder)
+        self.reports.add('Searching in: ' + self.baseFolder)
         self.atLeastOneFileFound = False
     
     def searchAndDestroy(self, filesToDelete, caseSensitive):
@@ -635,9 +508,9 @@ class FileSearchDeleteSpecifiedFiles:
             for theFileToDelete in filesToDelete:
                 logging.info("Searching for files/pattern: " + str(theFileToDelete))
                 
-                filenameMatchingMode = FilenameMatching.fullString #the default for an exact filename match         
+                filenameMatchingMode = param.FilenameMatching.fullString #the default for an exact filename match         
                 if "*" in theFileToDelete:#TODO: May need checks to verify if the wildcard pattern is ok
-                    filenameMatchingMode = FilenameMatching.wildcard
+                    filenameMatchingMode = param.FilenameMatching.wildcard
                 
                 for fileOrdinal in range(len(self.filesInFolder[folderOrdinal])):#for each file in the selected folder
                     filename = self.filesInFolder[folderOrdinal][fileOrdinal]
@@ -645,10 +518,10 @@ class FileSearchDeleteSpecifiedFiles:
                         filename = filename.lower()
                     #---what type of filename comparison?
                     deleteIt = False
-                    if filenameMatchingMode == FilenameMatching.wildcard:
+                    if filenameMatchingMode == param.FilenameMatching.wildcard:
                         if fnmatch.fnmatch(filename, theFileToDelete): #matched with wildcard *
                             deleteIt = True                        
-                    if filenameMatchingMode == FilenameMatching.fullString:
+                    if filenameMatchingMode == param.FilenameMatching.fullString:
                         if filename.strip() == theFileToDelete: #exact match
                             deleteIt = True
                     if deleteIt:
@@ -674,21 +547,21 @@ class FileSearchDeleteSpecifiedFiles:
 #-----------------------------------------------
 if __name__ == '__main__':
     sg.theme('Dark grey 13')  
-    fileOps = FileOperations()
+    fileOps = ops.FileOperations()
     #-------------------------------------------------------------------------
     #--- main menu for choosing which operation to perform
     #-------------------------------------------------------------------------
     searchMethod = DropdownChoicesMenu()
     displayText = ['What kind of operation do you want to do?']
-    dropdownOptions = [FileSearchModes.choice_fileBinary, FileSearchModes.choice_imagePixels, FileSearchModes.choice_residualFiles, FileSearchModes.choice_undoFileMove]
-    defaultDropDownOption = FileSearchModes.choice_fileBinary
+    dropdownOptions = [param.FileSearchModes.choice_fileBinary, param.FileSearchModes.choice_imagePixels, param.FileSearchModes.choice_residualFiles, param.FileSearchModes.choice_undoFileMove]
+    defaultDropDownOption = param.FileSearchModes.choice_fileBinary
     searchMethod.showUserTheMenu(displayText, dropdownOptions, defaultDropDownOption)
     userChoice = searchMethod.getUserChoice()
     
     #-------------------------------------------------------------------------
     #--- proceed with file duplicate search menu
     #-------------------------------------------------------------------------
-    if userChoice == FileSearchModes.choice_fileBinary:
+    if userChoice == param.FileSearchModes.choice_fileBinary:
         #---get folder name
         topText = ['Which folder do you want to search in? ']        
         bottomText = ['Duplicate files are assumed to be inside the folder you choose. This', 'program will move all duplicates into a separate, newly created folder']        
@@ -703,7 +576,7 @@ if __name__ == '__main__':
     #--- proceed with image search menu
     #-------------------------------------------------------------------------
     """ Image search is useful in cases where for example, an image is in jpg format and the same image is also present in png format and you want to delete one of the duplicates. It can also detect images that are approximately similar """
-    if userChoice == FileSearchModes.choice_imagePixels:
+    if userChoice == param.FileSearchModes.choice_imagePixels:
         #TODO: choice to retain larger or smaller image when duplicate found
         #TODO: choice to search for partially similar files
         #TODO: choice for larger number for hash signature
@@ -722,7 +595,7 @@ if __name__ == '__main__':
     #-------------------------------------------------------------------------
     #--- specify what file to remove from folder and subfolders
     #-------------------------------------------------------------------------
-    if userChoice == FileSearchModes.choice_residualFiles:
+    if userChoice == param.FileSearchModes.choice_residualFiles:
         #---get filenames
         topText = ['Which files do you want to get rid of?', '(menus for case sensitivity and folder will be presented soon)']
         bottomText = ['For example, you could type them as comma separated file names: ', 'Thumbs.db, Desktop.ini, *.json'] 
@@ -750,7 +623,7 @@ if __name__ == '__main__':
     #------------------------------------------------------------------------
     #--- Undo operations
     #------------------------------------------------------------------------
-    if userChoice == FileSearchModes.choice_undoFileMove:
+    if userChoice == param.FileSearchModes.choice_undoFileMove:
         #---get foldername
         topText = ['Select the ".undo" file for undoing']        
         bottomText = ['Undo cannot be done for deleted files']

@@ -15,7 +15,7 @@ First install dependencies, using (the version numbers don't have to match exact
 `pip3 install imagehash=4.3.0 PySimpleGUI=4.60.3 Pillow=9.2.0`    
   
 Then simply run the main file as:  
-`python3 main/main.py`  
+`python3 main.py`  
   
 # To run the tests  
 `pip3 install pytest=7.1.2`  
