@@ -1,7 +1,7 @@
 *.txt
 
 # ignore
-testFolder
+tests/sampleFolderWithFiles/generatedFiles/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

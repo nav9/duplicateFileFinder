@@ -1,3 +1,3 @@
 
-class FileAndFolderTester:
+class TestFileAndFolderFunctions:
     pass
