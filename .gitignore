@@ -1,7 +1,8 @@
 *.txt
 
-# ignore
-tests/sampleFolderWithFiles/generatedFiles/
+# ignore the dummy files and folders created by the tests
+dummy_*
+dummy_*/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

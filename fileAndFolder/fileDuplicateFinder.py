@@ -24,7 +24,9 @@ class FileDuplicateSearchBinaryMode:
         self.reports.add('Searching in : ' + self.baseFolder)
         self.reports.add('Duplicates will be stored in: ' + self.folderForDuplicateFiles)
         self.undoStore = undo.Undo(self.folderForDuplicateFiles, self.fileOps)
-        self.atLeastOneDuplicateFound = False      
+        self.atLeastOneDuplicateFound = False    
+        self.searchWithoutMovingFiles = False 
+        self.switchedOffGUI = False
     
     def search(self):        
         firstDuplicate = False        
@@ -57,8 +59,7 @@ class FileDuplicateSearchBinaryMode:
                         if filenameToCompare == const.GlobalConstants.alreadyProcessedFile:
                             continue                    
                         filesizeToCompare = self.fileSizes[folderOrdinalToCompare][fileOrdinalToCompare]
-                        if filesize == filesizeToCompare:#initial match found based on size
-                                                                                   
+                        if filesize == filesizeToCompare:#initial match found based on size                                                                                   
                             #---now compare based on file contents
                             filesAreSame = self.fileOps.compareEntireFiles(path + filename, pathToCompare + filenameToCompare)
                             if filesAreSame:
@@ -67,14 +68,16 @@ class FileDuplicateSearchBinaryMode:
                                     self.fileOps.createDirectoryIfNotExisting(self.folderForDuplicateFiles)
                                 self.atLeastOneDuplicateFound = True
                                 duplicateOrdinal = duplicateOrdinal + 1
-                                self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal)
+                                if not self.searchWithoutMovingFiles:
+                                    self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal)
                                 self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
                 self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
         if self.atLeastOneDuplicateFound:
             self.undoStore.generateUndoFile()
         else:
             self.reports.add("No duplicates found")
-        self.reports.generateReport(self.atLeastOneDuplicateFound)
+        if not self.switchedOffGUI: #TODO: need to implement this in a more modular and configurable/scalable way
+            self.reports.generateReport(self.atLeastOneDuplicateFound)
     
     def __moveFileToSeparateFolder__(self, folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal):
         #Note: Empty files will be identified as duplicates of other empty files. It's normal.  
@@ -94,3 +97,16 @@ class FileDuplicateSearchBinaryMode:
     
     def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
         self.filesInFolder[folderOrdinal][fileOrdinal] = const.GlobalConstants.alreadyProcessedFile            
+
+    def activateTestMode(self):
+        self.switchOffGUI()
+        self.setBooleanToSearchWithoutMovingFile()
+        
+    def setBooleanToSearchWithoutMovingFile(self): #currently used only for testing, but can be integrated into GUI using a checkbox
+        self.searchWithoutMovingFiles = True 
+        
+    def switchOffGUI(self): #Used when running test cases
+        self.switchedOffGUI = True
+        
+    def wereDuplicatesFound(self):
+        return self.atLeastOneDuplicateFound
