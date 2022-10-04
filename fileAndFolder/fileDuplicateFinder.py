@@ -28,7 +28,7 @@ class FileDuplicateSearchBinaryMode:
         self.searchWithoutMovingFiles = False 
         self.switchedOffGUI = False
     
-    def search(self):        
+    def search(self): #TODO: This function needs to be a lot more modular to be reusable   
         firstDuplicate = False        
         #---initiate search for duplicates
         totalFolders = len(self.folderPaths)
@@ -98,12 +98,15 @@ class FileDuplicateSearchBinaryMode:
     def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
         self.filesInFolder[folderOrdinal][fileOrdinal] = const.GlobalConstants.alreadyProcessedFile            
 
-    def activateTestMode(self):
-        self.switchOffGUI()
-        self.setBooleanToSearchWithoutMovingFile()
+    # def activateTestMode(self):
+    #     self.switchOffGUI()
+    #     self.setToSearchWithoutMovingFile()
         
-    def setBooleanToSearchWithoutMovingFile(self): #currently used only for testing, but can be integrated into GUI using a checkbox
+    def setToSearchWithoutMovingFile(self): #currently used only for testing, but can be integrated into GUI using a checkbox
         self.searchWithoutMovingFiles = True 
+        
+    def setToSearchByMovingFile(self):
+        self.searchWithoutMovingFiles = False
         
     def switchOffGUI(self): #Used when running test cases
         self.switchedOffGUI = True

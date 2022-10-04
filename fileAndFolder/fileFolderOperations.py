@@ -28,13 +28,11 @@ class FileOperations:
     
     """ Get names of files in each folder and subfolder. Also get sizes of files """
     def getFileNamesOfFilesInAllFoldersAndSubfolders(self, folderToConsider): 
-        #TODO: check if folder exists
         #TODO: read-only files, files without permission to read, files that can't be moved, corrupted files
         #TODO: What about "file-like objects"
-        #TODO: Encrypted containers?
         folderPaths = []; filesInFolder = []; fileSizes = []
         logging.info("Obtaining a list of folders and files...")
-        result = os.walk(folderToConsider, followlinks=False) #followlinks=False allows skipping symlinks. It's False by default. Just making it obvious here
+        result = os.walk(folderToConsider, followlinks=False) #Won't throw an error if folder does not exist. followlinks=False allows skipping symlinks. It's False by default. Just making it obvious here
         logging.info("Walking to collect names of files in this folder: " + str(folderToConsider))
         for oneFolder in result:
             folderPath = self.folderSlash(oneFolder[self.FULL_FOLDER_PATH])
@@ -88,6 +86,13 @@ class FileOperations:
     
     def isThisValidDirectory(self, folderpath):
         return os.path.exists(folderpath)
+    
+    def deleteFolderIfItExists(self, folderPath):
+        try:
+            if os.path.exists(folderPath):
+                shutil.rmtree(folderPath, ignore_errors = True) #The ignore_errors is for when the folder has read-only files https://stackoverflow.com/a/303225/453673
+        except Exception as e:
+            logging.error("Error when deleting folder: " + folderPath + ". Exception: " + str(e))
 
     """ Move file to another directory. Renaming while moving is possible """
     def moveFile(self, existingPath, existingFilename, newPath, newFilename):
@@ -95,6 +100,12 @@ class FileOperations:
             shutil.move(existingPath + existingFilename, newPath + newFilename)    
         except FileNotFoundError:
             logging.error("Could not find file: " + existingPath + existingFilename + " when trying to move it to " + newPath + newFilename)
+
+    def copyFile(self, filename, folderToCopyInto):
+        try:
+            shutil.copy(filename, folderToCopyInto)
+        except FileNotFoundError:
+            logging.error("Could not find file: " + filename + " or folder " + folderToCopyInto)    
     
     """ Adds a slash at the end of the folder name if it isn't already present """
     def folderSlash(self, folderName):
@@ -114,3 +125,7 @@ class FileOperations:
         except FileNotFoundError:
             logging.error("One of these files had a FileNotFoundError. Skipping: " + filename1 + " or " + filename2) #the file is not found either because it's a broken link or the file does not actually exist
     
+    def generateFileWithRandomData(self, filenameWithPath, fileSize):
+        with open(filenameWithPath, 'wb') as fileHandle:
+            fileHandle.write(os.urandom(fileSize))    
+            
