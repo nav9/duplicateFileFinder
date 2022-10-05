@@ -5,7 +5,7 @@ from fileAndFolder import fileDuplicateFinder
 from programConstants import constants
 
 class TestFileDuplicateFinding:
-    def test_searchingInEmptyFolder(self):
+    def test_searchingInEmptyFolder(self):#negative test
         #---first create a dummy folder
         fileFolderOps = fileOps.FileOperations()
         folderToSearch = os.path.join(constants.Tests.testFolder, constants.GlobalConstants.dummyPrefix + "folder1", "") #the quotes at the end add a folder slash if it does not exist
@@ -18,7 +18,7 @@ class TestFileDuplicateFinding:
         duplicateFinder.search()
         assert not duplicateFinder.wereDuplicatesFound() #the function will return False if no duplicate files were found
         
-    def test_searchingInFolderWithDuplicateFiles(self):
+    def test_searchingInFolderWithDuplicateFiles(self):#positive test
         #---first create a dummy folder  
         fileFolderOps = fileOps.FileOperations()
         folderName = "folder2"
@@ -44,6 +44,12 @@ class TestFileDuplicateFinding:
         for i in range(0, len(hardcodedSizes)):
             fileFolderOps.copyFile(filenames[i], nestedFolder)
             numberOfDuplicatesCreated += 1
+        #---create a symbolic link that should be ignored
+        symlinkFilenameWithPath = os.path.join(folderToSearch, "linkToNowhere")
+        fileFolderOps.deleteFileIfItExists(symlinkFilenameWithPath)
+        os.symlink(folderToSearch, symlinkFilenameWithPath) #Create the symlink file which should be ignored during traversal
+        #---create a duplicate fo the symlink
+        fileFolderOps.copyFile(symlinkFilenameWithPath, nestedFolder) #this copied file should not end up in the duplicates folder
         #---run a search        
         duplicateFinder = fileDuplicateFinder.FileDuplicateSearchBinaryMode(folderToSearch, fileFolderOps)
         duplicateFinder.switchOffGUI()

@@ -59,9 +59,6 @@ class FileOperations:
     def getFilenameAndExtension(self, filenameOrPathWithFilename):
         filename, fileExtension = os.path.splitext(filenameOrPathWithFilename)
         return filename, fileExtension
-    
-    def deleteFile(self, filenameWithPath):
-        os.remove(filenameWithPath) #TODO: check if file exists before deleting
         
     def writeLinesToFile(self, filenameWithPath, report):
         fileHandle = open(filenameWithPath, 'w')
@@ -93,6 +90,13 @@ class FileOperations:
                 shutil.rmtree(folderPath, ignore_errors = True) #The ignore_errors is for when the folder has read-only files https://stackoverflow.com/a/303225/453673
         except Exception as e:
             logging.error("Error when deleting folder: " + folderPath + ". Exception: " + str(e))
+
+    def deleteFileIfItExists(self, filenameWithPath):
+        try:
+            if os.path.isfile(filenameWithPath):
+                os.remove(filenameWithPath)
+        except Exception as e:
+            logging.error("Error when deleting file: " + filenameWithPath + ". Exception: " + str(e))
 
     """ Move file to another directory. Renaming while moving is possible """
     def moveFile(self, existingPath, existingFilename, newPath, newFilename):
