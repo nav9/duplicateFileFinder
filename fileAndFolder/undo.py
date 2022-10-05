@@ -1,5 +1,6 @@
 import datetime
 import PySimpleGUI as gui
+from programConstants import constants as const
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -26,7 +27,7 @@ class Undo:
         self.whatToUndo.append(data)
         
     def generateUndoFile(self):        
-        self.undoFilenameWithPath = self.folderToStore + "ToUndoTheFilesMoved_" + str(datetime.datetime.now()) + ".undo"
+        self.undoFilenameWithPath = self.folderToStore + "ToUndoTheFilesMoved_" + str(datetime.datetime.now()) + const.GlobalConstants.UNDO_FILE_EXTENSION
         self.fileOps.writeLinesToFile(self.undoFilenameWithPath, self.whatToUndo)        
 
     def performUndo(self, undoFilenameWithPath):

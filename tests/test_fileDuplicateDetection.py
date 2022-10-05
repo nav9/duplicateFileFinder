@@ -40,12 +40,23 @@ class TestFileDuplicateFinding:
             fileFolderOps.generateFileWithRandomData(generatedFilename, randomFileSize)
             filenames.append(generatedFilename)
         #---create duplicates of the hardcoded size files
+        numberOfDuplicatesCreated = 0
         for i in range(0, len(hardcodedSizes)):
             fileFolderOps.copyFile(filenames[i], nestedFolder)
+            numberOfDuplicatesCreated += 1
         #---run a search        
         duplicateFinder = fileDuplicateFinder.FileDuplicateSearchBinaryMode(folderToSearch, fileFolderOps)
         duplicateFinder.switchOffGUI()
         duplicateFinder.setToSearchByMovingFile()
         duplicateFinder.search()
         assert duplicateFinder.wereDuplicatesFound() #the function will return False if no duplicate files were found
-     
+        #---check if files were copied to duplicate folder
+        duplicates = fileFolderOps.getListOfFilesInThisFolder(os.path.join(folderToSearch, constants.GlobalConstants.duplicateFilesFolder))
+        assert len(duplicates) == numberOfDuplicatesCreated + 1 #files found should be equal to the number of duplicates we know were created plus the undo file generated
+        #---check if undo file is present
+        undoPresent = False
+        for duplicateFileName in duplicates:
+            if duplicateFileName.endswith(constants.GlobalConstants.UNDO_FILE_EXTENSION):
+                undoPresent = True
+        assert undoPresent
+                

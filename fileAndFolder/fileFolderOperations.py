@@ -22,8 +22,8 @@ logging.getLogger().setLevel(loggingLevel)
 class FileOperations:
     def __init__(self):
         self.FULL_FOLDER_PATH = 0
-        #self.SUBDIRECTORIES = 1
-        self.FILES_IN_FOLDER = 2
+        #self.SUBDIRECTORIES = 1 #Running next() on the generator of os.walk() returns a list of lists. Position 1 of the list is the list of folders
+        self.FILES_IN_FOLDER = 2 #Running next() on the generator of os.walk() returns a list of lists. Position 2 of the list is the list of files
         self.CHUNK_SIZE_FOR_BINARY_FILE_COMPARISON = 8 * 1024     
     
     """ Get names of files in each folder and subfolder. Also get sizes of files """
@@ -129,3 +129,6 @@ class FileOperations:
         with open(filenameWithPath, 'wb') as fileHandle:
             fileHandle.write(os.urandom(fileSize))    
             
+    def getListOfFilesInThisFolder(self, folderNameWithPath):
+        return next(os.walk(folderNameWithPath))[self.FILES_IN_FOLDER]
+    

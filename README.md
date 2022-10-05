@@ -19,6 +19,7 @@ Then simply run the main file as:
   
 # To run the tests  
 `pip3 install pytest=7.1.2`  
+Use `pytest` at the commandline to run the test cases. Do this in the root program directory.  
   
 # TODO
 These are mentioned in the code for now.

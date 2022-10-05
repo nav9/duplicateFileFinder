@@ -12,6 +12,7 @@ class GlobalConstants:
     alreadyProcessedFile = "."
     supportedImageFormats = ['jpg', 'jpeg', 'png', 'webp'] #let all extensions mentioned here be in lower case. More can be added after testing.
     FIRST_POSITION_IN_LIST = 0
+    UNDO_FILE_EXTENSION = ".undo"
 
 class FileSearchModes:
     choice_None = 'Exit'
