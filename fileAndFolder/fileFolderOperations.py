@@ -22,7 +22,7 @@ logging.getLogger().setLevel(loggingLevel)
 class FileOperations:
     def __init__(self):
         self.FULL_FOLDER_PATH = 0
-        #self.SUBDIRECTORIES = 1 #Running next() on the generator of os.walk() returns a list of lists. Position 1 of the list is the list of folders
+        self.SUBDIRECTORIES = 1 #Running next() on the generator of os.walk() returns a list of lists. Position 1 of the list is the list of folders
         self.FILES_IN_FOLDER = 2 #Running next() on the generator of os.walk() returns a list of lists. Position 2 of the list is the list of files
         self.CHUNK_SIZE_FOR_BINARY_FILE_COMPARISON = 8 * 1024     
     
@@ -100,16 +100,21 @@ class FileOperations:
 
     """ Move file to another directory. Renaming while moving is possible """
     def moveFile(self, existingPath, existingFilename, newPath, newFilename):
+        pathToMovedFile = None
         try:
-            shutil.move(existingPath + existingFilename, newPath + newFilename)    
+            pathToMovedFile = shutil.move(existingPath + existingFilename, newPath + newFilename)    
         except FileNotFoundError:
             logging.error("Could not find file: " + existingPath + existingFilename + " when trying to move it to " + newPath + newFilename)
+        return pathToMovedFile
 
-    def copyFile(self, filename, folderToCopyInto):
+    """ Copy file to another directory. Renaming while moving is possible.  If destination specifies a directory, the file will be copied into destination using the base filename from the source. If destination specifies a file that already exists, it will be replaced. """
+    def copyFile(self, filename, folderOrFileToCopyInto):
+        pathToCopiedFile = None
         try:
-            shutil.copy(filename, folderToCopyInto)
+            pathToCopiedFile = shutil.copy(filename, folderOrFileToCopyInto)
         except FileNotFoundError:
-            logging.error("Could not find file: " + filename + " or folder " + folderToCopyInto)    
+            logging.error("Could not find file: " + filename + " or folder " + folderOrFileToCopyInto)    
+        return pathToCopiedFile
     
     """ Adds a slash at the end of the folder name if it isn't already present """
     def folderSlash(self, folderName):
@@ -135,4 +140,8 @@ class FileOperations:
             
     def getListOfFilesInThisFolder(self, folderNameWithPath):
         return next(os.walk(folderNameWithPath))[self.FILES_IN_FOLDER]
+    
+    def getListOfSubfoldersInThisFolder(self, folderNameWithPath):
+        return next(os.walk(folderNameWithPath))[self.SUBDIRECTORIES]
+    
     

@@ -5,10 +5,10 @@ from fileAndFolder import fileDuplicateFinder
 from programConstants import constants
 
 class TestFileDuplicateFinding:
-    def test_searchingInEmptyFolder(self):#negative test
+    def test_searchingInEmptyFolder(self):#duplicateFilesFolder should not get created
         #---first create a dummy folder
         fileFolderOps = fileOps.FileOperations()
-        folderToSearch = os.path.join(constants.Tests.testFolder, constants.GlobalConstants.dummyPrefix + "folder1", "") #the quotes at the end add a folder slash if it does not exist
+        folderToSearch = os.path.join(constants.Tests.testFolder, constants.GlobalConstants.dummyPrefix + "folderEmpty", "") #the quotes at the end add a folder slash if it does not exist
         fileFolderOps.deleteFolderIfItExists(folderToSearch)
         fileFolderOps.createDirectoryIfNotExisting(folderToSearch)
         #---run a search        
@@ -17,11 +17,13 @@ class TestFileDuplicateFinding:
         duplicateFinder.setToSearchWithoutMovingFile()
         duplicateFinder.search()
         assert not duplicateFinder.wereDuplicatesFound() #the function will return False if no duplicate files were found
+        subFolders = fileFolderOps.getListOfSubfoldersInThisFolder(folderToSearch)
+        assert len(subFolders) == 0 #no duplicateFilesFolder generated        
         
     def test_searchingInFolderWithDuplicateFiles(self):#positive test
         #---first create a dummy folder  
         fileFolderOps = fileOps.FileOperations()
-        folderName = "folder2"
+        folderName = "folderWithFile"
         folderToSearch = os.path.join(constants.Tests.testFolder, constants.GlobalConstants.dummyPrefix + folderName, "") #the quotes at the end add a folder slash if it does not exist
         fileFolderOps.deleteFolderIfItExists(folderToSearch)
         fileFolderOps.createDirectoryIfNotExisting(folderToSearch)
@@ -48,7 +50,7 @@ class TestFileDuplicateFinding:
         symlinkFilenameWithPath = os.path.join(folderToSearch, "linkToNowhere")
         fileFolderOps.deleteFileIfItExists(symlinkFilenameWithPath)
         os.symlink(folderToSearch, symlinkFilenameWithPath) #Create the symlink file which should be ignored during traversal
-        #---create a duplicate fo the symlink
+        #---create a duplicate of the symlink
         fileFolderOps.copyFile(symlinkFilenameWithPath, nestedFolder) #this copied file should not end up in the duplicates folder
         #---run a search        
         duplicateFinder = fileDuplicateFinder.FileDuplicateSearchBinaryMode(folderToSearch, fileFolderOps)

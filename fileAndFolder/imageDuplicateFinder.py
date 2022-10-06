@@ -32,7 +32,7 @@ class ImageHashComparison:
         except UnidentifiedImageError:
             logging.error("Skipping, since one of these files is not an image: " + image + " or " + imageToCompare)
         return imagesAreSame
-    
+
 class ImageDuplicateSearch:
     def __init__(self, foldername, fileOps):
         self.fileOps = fileOps
@@ -43,8 +43,10 @@ class ImageDuplicateSearch:
         self.reports.add('Searching in : ' + self.baseFolder)
         self.reports.add('Duplicates will be stored in: ' + self.folderForDuplicateFiles)
         self.atLeastOneDuplicateFound = False
+        self.searchWithoutMovingFiles = False 
+        self.switchedOffGUI = False        
         self.undoStore = undo.Undo(self.folderForDuplicateFiles, self.fileOps)
-        self.imageComparison = ImageHashComparison()
+        self.imageComparison = ImageHashComparison()        
     
     def search(self):        
         firstDuplicate = False        
@@ -94,14 +96,16 @@ class ImageDuplicateSearch:
                                 self.fileOps.createDirectoryIfNotExisting(self.folderForDuplicateFiles)
                             self.atLeastOneDuplicateFound = True
                             duplicateOrdinal = duplicateOrdinal + 1
-                            self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal)
+                            if not self.searchWithoutMovingFiles:
+                                self.__moveFileToSeparateFolder__(folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal)
                             self.__markAlreadyProcessedFile__(folderOrdinalToCompare, fileOrdinalToCompare)
                 self.__markAlreadyProcessedFile__(folderOrdinal, fileOrdinal)
         if self.atLeastOneDuplicateFound:
             self.undoStore.generateUndoFile()
         else:
             self.reports.add("No duplicates found")
-        self.reports.generateReport(self.atLeastOneDuplicateFound)
+        if not self.switchedOffGUI: #TODO: need to implement this in a more modular and configurable/scalable way
+            self.reports.generateReport(self.atLeastOneDuplicateFound)
     
     def __moveFileToSeparateFolder__(self, folderOrdinal, fileOrdinal, folderOrdinalToCompare, fileOrdinalToCompare, duplicateOrdinal):
         #Note: Empty files will be identified as duplicates of other empty files. It's normal.  
@@ -121,3 +125,15 @@ class ImageDuplicateSearch:
     
     def __markAlreadyProcessedFile__(self, folderOrdinal, fileOrdinal):
         self.filesInFolder[folderOrdinal][fileOrdinal] = const.GlobalConstants.alreadyProcessedFile 
+
+    def setToSearchWithoutMovingFile(self): #currently used only for testing, but can be integrated into GUI using a checkbox
+        self.searchWithoutMovingFiles = True 
+        
+    def setToSearchByMovingFile(self):
+        self.searchWithoutMovingFiles = False
+        
+    def switchOffGUI(self): #Used when running test cases
+        self.switchedOffGUI = True
+        
+    def wereDuplicatesFound(self):
+        return self.atLeastOneDuplicateFound
