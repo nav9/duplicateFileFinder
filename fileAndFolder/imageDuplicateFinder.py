@@ -25,8 +25,10 @@ class ImageHashComparison:
     def compareIfExactlySame(self, image, imageToCompare):
         imagesAreSame = False
         try:
-            hash1 = imagehash.average_hash(Image.open(image), self.hash_size)
-            hash2 = imagehash.average_hash(Image.open(imageToCompare), self.hash_size)
+            #hash1 = imagehash.average_hash(Image.open(image), self.hash_size)
+            #hash2 = imagehash.average_hash(Image.open(imageToCompare), self.hash_size)
+            hash1 = imagehash.phash(Image.open(image), self.hash_size)
+            hash2 = imagehash.phash(Image.open(imageToCompare), self.hash_size)
             if hash1 == hash2:
                 imagesAreSame = True
         except UnidentifiedImageError:
