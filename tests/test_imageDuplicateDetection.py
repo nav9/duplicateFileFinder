@@ -9,6 +9,7 @@ from fileAndFolder import fileFolderOperations as fileOps
 from fileAndFolder import imageDuplicateFinder
 from programConstants import constants
 
+#TODO: Could shift this class to fileFolderOperations.py
 class ImageGenerator: #https://stackoverflow.com/questions/15261851/100x100-image-with-random-pixel-colour
     def __init__(self):
         self.IMAGE_Z_AXIS = 3
@@ -17,14 +18,15 @@ class ImageGenerator: #https://stackoverflow.com/questions/15261851/100x100-imag
         self.MAX_SHADE_RANGE_SANS_ZERO = 256
         self.PNG_Extension = ".png"
         self.JPG_Extension = ".jpg"
+        self.WEBP_Extension = ".webp"
     
-    def generateRandomRGB_PNG_Image(self, imageWidth, imageHeight, filenameWithPath):
-        imageArray = numpy.random.rand(imageHeight, imageWidth, self.IMAGE_Z_AXIS) * self.MAX_SHADE_RANGE
-        generatedImage = Image.fromarray(imageArray.astype('uint8')).convert('RGBA')
-        if not filenameWithPath.lower().endswith(self.PNG_Extension):
-            filenameWithPath = filenameWithPath + self.PNG_Extension
-        generatedImage.save(filenameWithPath)
-        return filenameWithPath
+    # def generateRandomRGB_PNG_Image(self, imageWidth, imageHeight, filenameWithPath):
+    #     imageArray = numpy.random.rand(imageHeight, imageWidth, self.IMAGE_Z_AXIS) * self.MAX_SHADE_RANGE
+    #     generatedImage = Image.fromarray(imageArray.astype('uint8')).convert('RGBA')
+    #     if not filenameWithPath.lower().endswith(self.PNG_Extension):
+    #         filenameWithPath = filenameWithPath + self.PNG_Extension
+    #     generatedImage.save(filenameWithPath)
+    #     return filenameWithPath
         
     def convertThisImageToJPG(self, filenameWithPath):
         img = Image.open(filenameWithPath)
@@ -32,6 +34,14 @@ class ImageGenerator: #https://stackoverflow.com/questions/15261851/100x100-imag
         imageNameWithoutExtension = os.path.splitext(filenameWithPath)[constants.GlobalConstants.FIRST_POSITION_IN_LIST] #The path will be retained but the ".png" will be removed
         filenameWithPath = imageNameWithoutExtension + self.JPG_Extension
         img.save(filenameWithPath)
+        return filenameWithPath
+    
+    def convertThisImageToWEBP(self, filenameWithPath):
+        img = Image.open(filenameWithPath)
+        img = img.convert('RGB')
+        imageNameWithoutExtension = os.path.splitext(filenameWithPath)[constants.GlobalConstants.FIRST_POSITION_IN_LIST] #The path will be retained but the ".png" will be removed
+        filenameWithPath = imageNameWithoutExtension + self.WEBP_Extension
+        img.save(filenameWithPath, 'webp')
         return filenameWithPath
     
     def generateRandomBarGraph(self, filenameWithPath):
@@ -61,7 +71,8 @@ class TestImageDuplicateFinding:
         subFolders = fileFolderOps.getListOfSubfoldersInThisFolder(folderToSearch)
         assert len(subFolders) == 0 #no duplicateImagesFolder generated
         
-    def test_searchingInFolderWithDuplicateImages(self):
+    def test_searchingInFolderWithDuplicateImagesOfSameSize_PNG_JPG_WEBP(self):
+        numberOfDuplicatesCreated = 0
         #---first create a dummy folder  
         fileFolderOps = fileOps.FileOperations()
         folderName = "folderWithImg"
@@ -72,54 +83,31 @@ class TestImageDuplicateFinding:
         fileFolderOps.createDirectoryIfNotExisting(nestedFolder)        
         #---create dummy files
         generator = ImageGenerator()
-        imageWidth = 200; imageHeight = 100; imageName = "image1.png"
+        #imageWidth = 200; imageHeight = 100; 
+        imageName = "image1.png"
         imageNameWithPath = os.path.join(folderToSearch, imageName)
         #imageNameWithPath = generator.generateRandomRGB_PNG_Image(imageWidth, imageHeight, imageNameWithPath)
-        generator.generateRandomBarGraph(imageNameWithPath)
-        jpgImageNameWithPath = generator.convertThisImageToJPG(imageNameWithPath)
-        #fileFolderOps.copyFile(imageNameWithPath, os.path.join(nestedFolder, "copiedImage1"))
+        generator.generateRandomBarGraph(imageNameWithPath) #original image
+        jpgImageNameWithPath = generator.convertThisImageToJPG(imageNameWithPath) 
+        numberOfDuplicatesCreated += 1
+        webpImageNameWithPath = generator.convertThisImageToWEBP(imageNameWithPath) 
+        numberOfDuplicatesCreated += 1        
+        fileFolderOps.copyFile(imageNameWithPath, os.path.join(nestedFolder, "copied_" + imageName))
+        numberOfDuplicatesCreated += 1
         #---run a search        
         duplicateFinder = imageDuplicateFinder.ImageDuplicateSearch(folderToSearch, fileFolderOps)
         duplicateFinder.switchOffGUI()
         duplicateFinder.setToSearchByMovingFile()
         duplicateFinder.search()
+        #Note: The asserts below may fail if the accuracy of the imagehash detection algorithm is low
         assert duplicateFinder.wereDuplicatesFound() #the function will return False if no duplicate files were found        
-        
-        # hardcodedSizes = [1024 * 2000, 1, 0] #1024 * 2000 will generate a 2MB file
-        # filenames = []
-        # numberOfFilesToGenerate = 5 #Ensure the number of files generated are greater than the number of file sizes being hardcoded below
-        # for i in range(0, numberOfFilesToGenerate):            
-        #     generatedFilename = os.path.join(folderToSearch, constants.GlobalConstants.dummyPrefix + "file" + str(i))
-        #     randomFileSize = random.randint(0, 1024) #nothing particular about 1024. It could be any other number too
-        #     #hardcode some file sizes
-        #     if i < len(hardcodedSizes):
-        #         randomFileSize = hardcodedSizes[i]
-        #     fileFolderOps.generateFileWithRandomData(generatedFilename, randomFileSize)
-        #     filenames.append(generatedFilename)
-        # #---create duplicates of the hardcoded size files
-        # numberOfDuplicatesCreated = 0
-        # for i in range(0, len(hardcodedSizes)):
-        #     fileFolderOps.copyFile(filenames[i], nestedFolder)
-        #     numberOfDuplicatesCreated += 1
-        # #---create a symbolic link that should be ignored
-        # symlinkFilenameWithPath = os.path.join(folderToSearch, "linkToNowhere")
-        # fileFolderOps.deleteFileIfItExists(symlinkFilenameWithPath)
-        # os.symlink(folderToSearch, symlinkFilenameWithPath) #Create the symlink file which should be ignored during traversal
-        # #---create a duplicate fo the symlink
-        # fileFolderOps.copyFile(symlinkFilenameWithPath, nestedFolder) #this copied file should not end up in the duplicates folder
-        # #---run a search        
-        # duplicateFinder = imageDuplicateFinder.ImageDuplicateSearch(folderToSearch, fileFolderOps)
-        # duplicateFinder.switchOffGUI()
-        # duplicateFinder.setToSearchByMovingFile()
-        # duplicateFinder.search()
-        # assert duplicateFinder.wereDuplicatesFound() #the function will return False if no duplicate files were found
-        # #---check if files were copied to duplicate folder
-        # duplicates = fileFolderOps.getListOfFilesInThisFolder(os.path.join(folderToSearch, constants.GlobalConstants.duplicateFilesFolder))
-        # assert len(duplicates) == numberOfDuplicatesCreated + 1 #files found should be equal to the number of duplicates we know were created plus the undo file generated
-        # #---check if undo file is present
-        # undoPresent = False
-        # for duplicateFileName in duplicates:
-        #     if duplicateFileName.endswith(constants.GlobalConstants.UNDO_FILE_EXTENSION):
-        #         undoPresent = True
-        # assert undoPresent
-                
+        #---check if files were copied to duplicate folder
+        duplicates = fileFolderOps.getListOfFilesInThisFolder(os.path.join(folderToSearch, constants.GlobalConstants.duplicateImagesFolder))
+        assert len(duplicates) == numberOfDuplicatesCreated + 1 #files found should be equal to the number of duplicates we know were created plus the undo file generated       
+        #---check if undo file is present
+        undoPresent = False
+        for duplicateFileName in duplicates:
+            if duplicateFileName.endswith(constants.GlobalConstants.UNDO_FILE_EXTENSION):
+                undoPresent = True
+        assert undoPresent
+    

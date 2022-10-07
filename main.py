@@ -29,17 +29,16 @@ handler.formatter = logging.Formatter(fmt='%(levelname)s %(asctime)s - %(message
 logging.getLogger().addHandler(handler)
 logging.getLogger().setLevel(loggingLevel)
 
+#TODO: When a duplicate is found (especially in images), if the original is a PNG file and the duplicate is a JPG file, when it gets copied into the duplicates folder, the JPG extension gets converted to PNG. This should perhaps be avoided. The file extension should be preserved.
 #TODO: After moving duplicates, delete all empty folders, starting from the leaf directories. This deletion info would also have to be included for undo.
-#TODO: Check for an existing "duplicateFilesFolder", and either ignore it or decide what to do about it.
 #TODO: create a memory of the last location that was searched, and show that as the default when doing a folder search
 #TODO: Use a CI to automatically run tests and to use pyinstaller to generate an installer file
-#TODO: Add an option to undo the duplicate file move
 #TODO: Add a progress bar and also output progress percentage with current time to command prompt.
 #TODO: If there are too many files, a cache can be activated to store details of files being searched, to avoid extra computation during comparison
 #TODO: When processing websites saved to local disk (they have an html file and a corresponding folder that stores data relevant to the html file), it would help to do some pre-processing to recognize such folders and either process them differently or to zip them and then compare them.
 #TODO: Recognize things like git folders or entire folders that are duplicate
 #TODO: Introduce a menu option for comparing sentences of a file and removing duplicate sentences. This helps cosolidate any text notes or even phone contacts.
-
+#TODO: Could create an option for crop-resistant image matches using image hash's built-in Crop-resistant hashing
 
 if __name__ == '__main__':
     gui.theme('Dark grey 13')  

@@ -20,11 +20,12 @@ logging.getLogger().setLevel(loggingLevel)
 
 class ImageHashComparison:
     def __init__(self):
-        self.hash_size = 8 #default
+        self.hash_size = 8 #default value is 8. Can be increased to 24 to improve similarity detection accuracy
     
     def compareIfExactlySame(self, image, imageToCompare):
         imagesAreSame = False
         try:
+            #Note: average_hash is less accurate at detecting similarities than phash, but phash takes a tiny bit longer to generate the hash
             #hash1 = imagehash.average_hash(Image.open(image), self.hash_size)
             #hash2 = imagehash.average_hash(Image.open(imageToCompare), self.hash_size)
             hash1 = imagehash.phash(Image.open(image), self.hash_size)

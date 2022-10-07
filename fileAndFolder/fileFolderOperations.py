@@ -108,12 +108,12 @@ class FileOperations:
         return pathToMovedFile
 
     """ Copy file to another directory. Renaming while moving is possible.  If destination specifies a directory, the file will be copied into destination using the base filename from the source. If destination specifies a file that already exists, it will be replaced. """
-    def copyFile(self, filename, folderOrFileToCopyInto):
+    def copyFile(self, filenameWithPath, destinationFolderOrFileWithPath):
         pathToCopiedFile = None
         try:
-            pathToCopiedFile = shutil.copy(filename, folderOrFileToCopyInto)
+            pathToCopiedFile = shutil.copy2(filenameWithPath, destinationFolderOrFileWithPath)
         except FileNotFoundError:
-            logging.error("Could not find file: " + filename + " or folder " + folderOrFileToCopyInto)    
+            logging.error("Could not find file: " + filenameWithPath + " or folder " + destinationFolderOrFileWithPath)    
         return pathToCopiedFile
     
     """ Adds a slash at the end of the folder name if it isn't already present """
