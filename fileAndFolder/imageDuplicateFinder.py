@@ -68,7 +68,7 @@ class ImageDuplicateSearch:
                 filename = self.filesInFolder[folderOrdinal][fileOrdinal]
                 if filename == const.GlobalConstants.alreadyProcessedFile:
                     continue
-                logging.info("Processing file " + str(fileOrdinal) + "/" + str(totalFilesInFolder) + " in folder " + str(folderOrdinal) + "/" + str(totalFolders))
+                logging.info("Processing file " + str(fileOrdinal+1) + "/" + str(totalFilesInFolder) + " in folder " + str(folderOrdinal+1) + "/" + str(totalFolders))
                 #---compare with all files
                 for folderOrdinalToCompare in range(len(self.folderPaths)):#for each folder
                     filenamesToCompare = self.filesInFolder[folderOrdinalToCompare]
