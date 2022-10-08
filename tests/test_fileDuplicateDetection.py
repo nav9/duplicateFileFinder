@@ -36,7 +36,7 @@ class TestFileDuplicateFinding:
         for i in range(0, numberOfFilesToGenerate):            
             generatedFilename = os.path.join(folderToSearch, constants.GlobalConstants.dummyPrefix + "file" + str(i))
             randomFileSize = random.randint(0, 1024) #nothing particular about 1024. It could be any other number too
-            #hardcode some file sizes
+            #---hardcode some file sizes
             if i < len(hardcodedSizes):
                 randomFileSize = hardcodedSizes[i]
             fileFolderOps.generateFileWithRandomData(generatedFilename, randomFileSize)
@@ -60,11 +60,14 @@ class TestFileDuplicateFinding:
         assert duplicateFinder.wereDuplicatesFound() #the function will return False if no duplicate files were found
         #---check if files were copied to duplicate folder
         duplicates = fileFolderOps.getListOfFilesInThisFolder(os.path.join(folderToSearch, constants.GlobalConstants.duplicateFilesFolder))
-        assert len(duplicates) == numberOfDuplicatesCreated + 1 #files found should be equal to the number of duplicates we know were created plus the undo file generated
+        extraFilesAllowedInDuplicatesFolder = ["the undo file"]
+        assert len(duplicates) == numberOfDuplicatesCreated + len(extraFilesAllowedInDuplicatesFolder) #files found should be equal to the number of duplicates we know were created plus the undo file generated
         #---check if undo file is present
         undoPresent = False
-        for duplicateFileName in duplicates:
-            if duplicateFileName.endswith(constants.GlobalConstants.UNDO_FILE_EXTENSION):
+        for fileInDuplicatesFolder in duplicates:
+            if fileInDuplicatesFolder.endswith(constants.GlobalConstants.UNDO_FILE_EXTENSION):
                 undoPresent = True
+                break
         assert undoPresent
+        #TODO: For the sake of completeness, it's also necessary to check for whether the files were actually moved to the duplicates folder, rather than copied. So it's necessary to check for the number of files remaining in folders other than the duplicate folder.
                 

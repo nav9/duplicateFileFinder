@@ -16,19 +16,22 @@ logging.getLogger().setLevel(loggingLevel)
 
 class Undo:
     """ This class allows the creation of an undo file and allows using an existing undo file to undo the file operations that were performed earlier """
-    def __init__(self, folderToStore, fileOps):#TODO: refactor to not require sending the folder name, coz when the class is instantiated for performing an undo, it's not necessary to specify a folder
+    def __init__(self, folderToUse, fileOps):#TODO: refactor to not require sending the folder name, coz when the class is instantiated for performing an undo, it's not necessary to specify a folder
         self.whatToUndo = []
         self.separator = ','
-        self.folderToStore = folderToStore
-        self.fileOps = fileOps        
+        self.folderToUse = folderToUse
+        self.fileOps = fileOps  
+        self.switchedOffGUI = False  
+        self.undoFilenameWithPath = None 
     
     def add(self, oldPath, oldFilename, newPath, newFilename):
         data = oldPath + self.separator + oldFilename + self.separator + newPath + self.separator + newFilename
         self.whatToUndo.append(data)
         
     def generateUndoFile(self):        
-        self.undoFilenameWithPath = self.folderToStore + "ToUndoTheFilesMoved_" + str(datetime.datetime.now()) + const.GlobalConstants.UNDO_FILE_EXTENSION
-        self.fileOps.writeLinesToFile(self.undoFilenameWithPath, self.whatToUndo)        
+        self.undoFilenameWithPath = self.folderToUse + "ToUndoTheFilesMoved_" + str(datetime.datetime.now()) + const.GlobalConstants.UNDO_FILE_EXTENSION
+        self.fileOps.writeLinesToFile(self.undoFilenameWithPath, self.whatToUndo)   
+        return self.undoFilenameWithPath     
 
     def performUndo(self, undoFilenameWithPath):
         numberOfUndos = 0
@@ -43,7 +46,10 @@ class Undo:
             #TODO: check if files are present and if old path is empty so that the move can happen seamlessly 
             self.fileOps.moveFile(currentPath, currentFilename, oldPath, oldFilename)
             numberOfUndos = numberOfUndos + 1
-        self.fileOps.deleteFile(undoFilenameWithPath)
+        self.fileOps.deleteFileIfItExists(undoFilenameWithPath)
         logging.info('Finished '+ str(numberOfUndos) + ' undo operations. Deleted file: ' + str(undoFilenameWithPath))
-        gui.popup("Completed undo operations", keep_on_top=True)
+        if not self.switchedOffGUI: #TODO: need to implement this in a more modular and configurable/scalable way
+            gui.popup("Completed undo operations", keep_on_top=True)
         
+    def switchOffGUI(self): #Used when running test cases
+        self.switchedOffGUI = True        
