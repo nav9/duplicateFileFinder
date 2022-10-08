@@ -6,7 +6,7 @@ from logging.handlers import RotatingFileHandler
 
 #TODO: shift log file config to file
 logFileName = 'logs_duplicateFinder.log'
-loggingLevel = logging.DEBUG
+loggingLevel = logging.INFO
 logging.basicConfig(level=loggingLevel, format='%(levelname)s %(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S') #outputs to console
 #log = logging.getLogger(__name__)
 handler = RotatingFileHandler(logFileName, maxBytes=2000000, backupCount=2)#TODO: Shift to config file
