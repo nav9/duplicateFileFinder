@@ -18,7 +18,7 @@ class FileSearchModes:
     choice_None = 'Exit'
     choice_fileBinary = 'Duplicate file segregation'
     choice_imagePixels = 'Duplicate image segregation'    
-    choice_residualFiles = 'Delete files (like Thumbs.db etc.)'
+    choice_residualFileDeletion = 'Delete files (like Thumbs.db etc.)'
     choice_undoFileMove = 'Undo files that were moved and renamed'
     
 class FilenameMatching:

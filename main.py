@@ -14,7 +14,7 @@ from programConstants import constants as const
 from fileAndFolder import fileFolderOperations, imageDuplicateFinder
 from fileAndFolder import fileDuplicateFinder
 from fileAndFolder import imageDuplicateFinder
-from fileAndFolder import deleteFiles
+from fileAndFolder import deleter
 from fileAndFolder import undo
 import PySimpleGUI as gui
 from SimpleGUI import menus
@@ -39,6 +39,8 @@ logging.getLogger().setLevel(loggingLevel)
 #TODO: Recognize things like git folders or entire folders that are duplicate
 #TODO: Introduce a menu option for comparing sentences of a file and removing duplicate sentences. This helps cosolidate any text notes or even phone contacts.
 #TODO: Could create an option for crop-resistant image matches using image hash's built-in Crop-resistant hashing
+#TODO: Switching off the GUI for running tests, should not disable report generation. But then the test cases would also have to be updated to support the presence of the report file.
+#TODO: Have an undo option for residual file deletion.
 
 if __name__ == '__main__':
     gui.theme('Dark grey 13')  
@@ -48,7 +50,7 @@ if __name__ == '__main__':
     #-------------------------------------------------------------------------
     searchMethod = menus.DropdownChoicesMenu()
     displayText = ['What kind of operation do you want to do?']
-    dropdownOptions = [const.FileSearchModes.choice_fileBinary, const.FileSearchModes.choice_imagePixels, const.FileSearchModes.choice_residualFiles, const.FileSearchModes.choice_undoFileMove]
+    dropdownOptions = [const.FileSearchModes.choice_fileBinary, const.FileSearchModes.choice_imagePixels, const.FileSearchModes.choice_residualFileDeletion, const.FileSearchModes.choice_undoFileMove]
     defaultDropDownOption = const.FileSearchModes.choice_fileBinary
     searchMethod.showUserTheMenu(displayText, dropdownOptions, defaultDropDownOption)
     userChoice = searchMethod.getUserChoice()
@@ -90,7 +92,7 @@ if __name__ == '__main__':
     #-------------------------------------------------------------------------
     #--- specify what file to remove from folder and subfolders
     #-------------------------------------------------------------------------
-    if userChoice == const.FileSearchModes.choice_residualFiles:
+    if userChoice == const.FileSearchModes.choice_residualFileDeletion:
         #---get filenames
         topText = ['Which files do you want to get rid of?', '(menus for case sensitivity and folder will be presented soon)']
         bottomText = ['For example, you could type them as comma separated file names: ', 'Thumbs.db, Desktop.ini, *.json'] 
@@ -105,14 +107,14 @@ if __name__ == '__main__':
         if not caseSensitive:
             filesToDelete = [x.lower() for x in filesToDelete]        
         #---get foldername
-        topText = ['Which folder do you want to search in? ']        
+        topText = ['Which folder do you want to search in? ', '(Remember: You cannot undo the deletion. Be careful with the filename specification.)']        
         bottomText = ['Subfolders will also be searched to delete these files:', str(filesToDelete)]        
         whichFolder = menus.FolderChoiceMenu(fileOps) #get folder in which to start recursively searching and deleting files
         whichFolder.showUserTheMenu(topText, bottomText)
         folderChosen = whichFolder.getUserChoice()
         #TODO: can have a confirmation dialog box for safety         
         #---search and destroy
-        fileDeleter = deleteFiles.FileSearchDeleteSpecifiedFiles(folderChosen, fileOps)
+        fileDeleter = deleter.FileDeleter(folderChosen, fileOps)
         fileDeleter.searchAndDestroy(filesToDelete, caseSensitive)      
         
     #------------------------------------------------------------------------
