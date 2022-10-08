@@ -74,7 +74,7 @@ class FileDeleter:
         #TODO: if delete not possible, mention it in the generated report and don't make atLeastOneFileFound true
         folder = self.folderPaths[folderOrdinal]
         file = self.filesInFolder[folderOrdinal][fileOrdinal]        
-        self.fileOps.deleteFile(folder + file)
+        self.fileOps.deleteFileIfItExists(folder + file)
         reportString = "Deleted " + folder + file
         self.reports.add(reportString)
         self.atLeastOneFileFound = True
