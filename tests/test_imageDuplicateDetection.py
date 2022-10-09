@@ -45,7 +45,7 @@ class ImageGenerator: #https://stackoverflow.com/questions/15261851/100x100-imag
         return filenameWithPath
     
     def generateRandomBarGraph(self, filenameWithPath):
-        randMin = 1; randMax = 100
+        randMin = 10; randMax = 40
         numberOfAxisElements = randrange(randMin, randMax)
         xAxis = [randrange(randMin, randMax) for _ in range(0, numberOfAxisElements)]
         yAxis = [random.choice(string.ascii_letters) for _ in range(0, numberOfAxisElements)]
