@@ -23,7 +23,7 @@ class TestUndoFunctionality:
             newFilename = constants.GlobalConstants.dummyPrefix + "file" + str(i)
             generatedFilename = os.path.join(dummyDuplicatesFolder, newFilename)
             randomFileSize = random.randint(0, 1024) #nothing particular about 1024. It could be any other number too
-            fileFolderOps.generateFileWithRandomData(generatedFilename, randomFileSize)
+            fileFolderOps.generateBinaryFileWithRandomData(generatedFilename, randomFileSize)
             filenames.append(generatedFilename)
             #---pretend that the files in the dummy duplicates folder were earlier in the dummy original folder. Keeping the old and new filenames same for simplicity
             self.undoStore.add(dummyOriginalFolder, newFilename, dummyDuplicatesFolder, newFilename)

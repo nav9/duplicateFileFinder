@@ -39,7 +39,7 @@ class TestFileDuplicateFinding:
             #---hardcode some file sizes
             if i < len(hardcodedSizes):
                 randomFileSize = hardcodedSizes[i]
-            fileFolderOps.generateFileWithRandomData(generatedFilename, randomFileSize)
+            fileFolderOps.generateBinaryFileWithRandomData(generatedFilename, randomFileSize)
             filenames.append(generatedFilename)
         #---create duplicates of the hardcoded size files
         numberOfDuplicatesCreated = 0

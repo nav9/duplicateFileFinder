@@ -1,5 +1,6 @@
 import os
 import shutil #for moving file
+#from itertools import islice #for reading lines of files
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -24,7 +25,8 @@ class FileOperations:
         self.FULL_FOLDER_PATH = 0
         self.SUBDIRECTORIES = 1 #Running next() on the generator of os.walk() returns a list of lists. Position 1 of the list is the list of folders
         self.FILES_IN_FOLDER = 2 #Running next() on the generator of os.walk() returns a list of lists. Position 2 of the list is the list of files
-        self.CHUNK_SIZE_FOR_BINARY_FILE_COMPARISON = 8 * 1024     
+        self.CHUNK_SIZE_FOR_BINARY_FILE_COMPARISON = 8 * 1024 
+        self.LINES_TO_READ_AT_ONCE = 10 * 1024 #can be larger, depending on memory available  
     
     """ Get names of files in each folder and subfolder. Also get sizes of files """
     def getFileNamesOfFilesInAllFoldersAndSubfolders(self, folderToConsider): 
@@ -60,17 +62,47 @@ class FileOperations:
         filename, fileExtension = os.path.splitext(filenameOrPathWithFilename)
         return filename, fileExtension
         
-    def writeLinesToFile(self, filenameWithPath, report):
+    def writeLinesToFile(self, filenameWithPath, linesToWrite):#linesToWrite can be a list or set
         fileHandle = open(filenameWithPath, 'w')
-        for line in report:
+        for line in linesToWrite:
             fileHandle.write(line)
             fileHandle.write("\n")
         fileHandle.close()
         
+    def writeKeysOfDictToFile(self, filenameWithPath, dictReference):
+        fileHandle = open(filenameWithPath, 'w')
+        for key in dictReference:
+            fileHandle.write(key)
+            fileHandle.write("\n")
+        fileHandle.close()
+        
     def readFromFile(self, filenameWithPath):
-        with open(filenameWithPath) as f:
-            lines = f.read().splitlines()#TODO: try catch
-        return lines              
+        with open(filenameWithPath) as fileHandle:
+            lines = fileHandle.read().splitlines()#TODO: try catch
+        return lines
+    
+    #TODO: Consider if it'd be more efficient to load multiple rows as chunks. Or whether yield already does that
+    def getGeneratorObjectToFileForReadingLines(self, filenameWithPath):#invoke this function to get the generator object and then just keep calling next(generatorObject) to get each row one by one
+        for row in open(filenameWithPath, "r"):
+            yield row #returns a generator object
+    
+    def readBunchOfLinesFromTextFile(self, generatorObject):
+        lines = []
+        for _ in range(0, self.LINES_TO_READ_AT_ONCE):
+            try:
+                line = next(generatorObject)
+            except StopIteration:#reached end of file
+                break #exit for loop
+            lines.append(line)
+        return lines #if lines is empty, we've reached the end of the file
+    
+    # def getChunksOfLinesFromTextFile(self, filenameWithPath):
+    #     lines = []
+    #     with open(...) as fileHandle:
+    #         while True:
+    #             nLines = list(islice(fileHandle, self.LINES_TO_READ_AT_ONCE))
+    #             if not nLines:#reached end of file
+    #                 break
     
     def createDirectoryIfNotExisting(self, folder):
         if not os.path.exists(folder): 
@@ -134,7 +166,7 @@ class FileOperations:
         except FileNotFoundError:
             logging.error("One of these files had a FileNotFoundError. Skipping: " + filename1 + " or " + filename2) #the file is not found either because it's a broken link or the file does not actually exist
     
-    def generateFileWithRandomData(self, filenameWithPath, fileSize):
+    def generateBinaryFileWithRandomData(self, filenameWithPath, fileSize):
         with open(filenameWithPath, 'wb') as fileHandle:
             fileHandle.write(os.urandom(fileSize))    
             
@@ -144,4 +176,6 @@ class FileOperations:
     def getListOfSubfoldersInThisFolder(self, folderNameWithPath):
         return next(os.walk(folderNameWithPath))[self.SUBDIRECTORIES]
     
+
+        
     

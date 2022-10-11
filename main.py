@@ -7,15 +7,10 @@ Created on 19-Feb-2021
 import sys
 sys.dont_write_bytecode = True #Prevents the creation of some annoying cache files and folders. This line has to be present before all the other imports: https://docs.python.org/3/library/sys.html#sys.dont_write_bytecode and https://stackoverflow.com/a/71434629/453673 
 
-#import filetype
 import logging
 from logging.handlers import RotatingFileHandler
 from programConstants import constants as const
-from fileAndFolder import fileFolderOperations, imageDuplicateFinder
-from fileAndFolder import fileDuplicateFinder
-from fileAndFolder import imageDuplicateFinder
-from fileAndFolder import deleter
-from fileAndFolder import undo
+from fileAndFolder import fileFolderOperations, fileDuplicateFinder, imageDuplicateFinder, uniqueLineFinder, deleter, undo
 import PySimpleGUI as gui
 from SimpleGUI import menus
 
@@ -50,7 +45,7 @@ if __name__ == '__main__':
     #-------------------------------------------------------------------------
     searchMethod = menus.DropdownChoicesMenu()
     displayText = ['What kind of operation do you want to do?']
-    dropdownOptions = [const.FileSearchModes.choice_fileBinary, const.FileSearchModes.choice_imagePixels, const.FileSearchModes.choice_residualFileDeletion, const.FileSearchModes.choice_undoFileMove]
+    dropdownOptions = [const.FileSearchModes.choice_fileBinary, const.FileSearchModes.choice_imagePixels, const.FileSearchModes.choice_lineDuplicates, const.FileSearchModes.choice_residualFileDeletion, const.FileSearchModes.choice_undoFileMove]
     defaultDropDownOption = const.FileSearchModes.choice_fileBinary
     searchMethod.showUserTheMenu(displayText, dropdownOptions, defaultDropDownOption)
     userChoice = searchMethod.getUserChoice()
@@ -88,7 +83,22 @@ if __name__ == '__main__':
         #---search for duplicates
         fileSearcher = imageDuplicateFinder.ImageDuplicateSearch(folderChosen, fileOps)
         fileSearcher.search()        
-#         
+
+    #-------------------------------------------------------------------------
+    #--- proceed with line search menu
+    #-------------------------------------------------------------------------
+    """ Given a folder with text files containing similar lines of text, this program creates a new file containing only the unique lines from all those text files """
+    if userChoice == const.FileSearchModes.choice_lineDuplicates:
+        #---get folder name
+        topText = ['Which folder do you want to search in? ', 'The folder should contain only the files you want to process']        
+        bottomText = ['Unique lines from each file will be stored in memory and written', 'to a new file. So any (exact) duplicate lines in the files get ignored.']        
+        whichFolder = menus.FolderChoiceMenu(fileOps)
+        whichFolder.showUserTheMenu(topText, bottomText)
+        folderChosen = whichFolder.getUserChoice()
+        #---search for duplicate lines
+        lineSearcher = uniqueLineFinder.UniqueLineFinder(folderChosen, fileOps)
+        lineSearcher.search()            
+
     #-------------------------------------------------------------------------
     #--- specify what file to remove from folder and subfolders
     #-------------------------------------------------------------------------

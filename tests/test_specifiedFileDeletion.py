@@ -48,7 +48,7 @@ class TestFileDeletionFunctionality:
         for file in filenamesToGenerate: 
             generatedFilename = os.path.join(common.folderToSearch, file)
             randomFileSize = random.randint(0, 1024) #nothing particular about 1024. It could be any other number too
-            common.fileFolderOps.generateFileWithRandomData(generatedFilename, randomFileSize) 
+            common.fileFolderOps.generateBinaryFileWithRandomData(generatedFilename, randomFileSize) 
         #---delete files
         caseSensitive = True
         fileDeleter.searchAndDestroy(simulatedUserInput, caseSensitive)
@@ -74,7 +74,7 @@ class TestFileDeletionFunctionality:
         for file in filenamesToGenerate: 
             generatedFilename = os.path.join(common.folderToSearch, file)
             randomFileSize = random.randint(0, 1024) #nothing particular about 1024. It could be any other number too
-            common.fileFolderOps.generateFileWithRandomData(generatedFilename, randomFileSize) 
+            common.fileFolderOps.generateBinaryFileWithRandomData(generatedFilename, randomFileSize) 
         #---delete files
         caseSensitive = False
         fileDeleter.searchAndDestroy(simulatedUserInput, caseSensitive)
@@ -99,7 +99,7 @@ class TestFileDeletionFunctionality:
         for file in filenamesToGenerate: 
             generatedFilename = os.path.join(common.folderToSearch, file)
             randomFileSize = random.randint(0, 1024) #nothing particular about 1024. It could be any other number too
-            common.fileFolderOps.generateFileWithRandomData(generatedFilename, randomFileSize) 
+            common.fileFolderOps.generateBinaryFileWithRandomData(generatedFilename, randomFileSize) 
         #---delete files
         caseSensitive = True
         fileDeleter.searchAndDestroy(simulatedUserInput, caseSensitive)
@@ -125,7 +125,7 @@ class TestFileDeletionFunctionality:
         for file in filenamesToGenerate: 
             generatedFilename = os.path.join(common.folderToSearch, file)
             randomFileSize = random.randint(0, 1024) #nothing particular about 1024. It could be any other number too
-            common.fileFolderOps.generateFileWithRandomData(generatedFilename, randomFileSize) 
+            common.fileFolderOps.generateBinaryFileWithRandomData(generatedFilename, randomFileSize) 
         #---delete files
         caseSensitive = False
         fileDeleter.searchAndDestroy(simulatedUserInput, caseSensitive)
