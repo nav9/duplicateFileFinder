@@ -2,7 +2,7 @@ import os
 import random
 from fileAndFolder import fileFolderOperations as fileOps
 from programConstants import constants
-from fileAndFolder import deleter
+from fileAndFolder import fileDeleter
 
 #TODO: The filenames may need to take into account various operating system conventions of filenames
 
@@ -33,8 +33,8 @@ class TestFileDeletionFunctionality:
     def test_caseSensitiveDeletion(self):        
         common = Common()
         common.prepareFolderAfresh()
-        fileDeleter = deleter.FileDeleter(common.folderToSearch, common.fileFolderOps)
-        fileDeleter.switchOffGUI()
+        deleter = fileDeleter.FileDeleter(common.folderToSearch, common.fileFolderOps)
+        deleter.switchOffGUI()
         #---create a list of filenames to test
         filenamesToGenerate = []; filesThatShouldGetDeleted = []; filesThatShouldNotGetDeleted = []
         filesThatShouldGetDeleted.extend(common.caseSensitive)
@@ -51,7 +51,7 @@ class TestFileDeletionFunctionality:
             common.fileFolderOps.generateBinaryFileWithRandomData(generatedFilename, randomFileSize) 
         #---delete files
         caseSensitive = True
-        fileDeleter.searchAndDestroy(simulatedUserInput, caseSensitive)
+        deleter.searchAndDestroy(simulatedUserInput, caseSensitive)
         #---check which files got deleted and which didn't
         remainingFiles = common.fileFolderOps.getListOfFilesInThisFolder(common.folderToSearch)
         assert common.areTheExactNumberOfFilesPresentInBoth(remainingFiles, filesThatShouldNotGetDeleted)
@@ -59,8 +59,8 @@ class TestFileDeletionFunctionality:
     def test_caseInSensitiveDeletion(self):        
         common = Common()
         common.prepareFolderAfresh()
-        fileDeleter = deleter.FileDeleter(common.folderToSearch, common.fileFolderOps)
-        fileDeleter.switchOffGUI()
+        deleter = fileDeleter.FileDeleter(common.folderToSearch, common.fileFolderOps)
+        deleter.switchOffGUI()
         #---create a list of filenames to test
         filenamesToGenerate = []; filesThatShouldGetDeleted = []; filesThatShouldNotGetDeleted = []
         filesThatShouldGetDeleted.extend(common.caseInsensitive)
@@ -77,7 +77,7 @@ class TestFileDeletionFunctionality:
             common.fileFolderOps.generateBinaryFileWithRandomData(generatedFilename, randomFileSize) 
         #---delete files
         caseSensitive = False
-        fileDeleter.searchAndDestroy(simulatedUserInput, caseSensitive)
+        deleter.searchAndDestroy(simulatedUserInput, caseSensitive)
         #---check which files got deleted and which didn't
         remainingFiles = common.fileFolderOps.getListOfFilesInThisFolder(common.folderToSearch)
         assert common.areTheExactNumberOfFilesPresentInBoth(remainingFiles, filesThatShouldNotGetDeleted)        
@@ -85,8 +85,8 @@ class TestFileDeletionFunctionality:
     def test_wildcardCaseSensitiveDeletion(self):        
         common = Common()
         common.prepareFolderAfresh()
-        fileDeleter = deleter.FileDeleter(common.folderToSearch, common.fileFolderOps)
-        fileDeleter.switchOffGUI()
+        deleter = fileDeleter.FileDeleter(common.folderToSearch, common.fileFolderOps)
+        deleter.switchOffGUI()
         #---create a list of filenames to test
         filenamesToGenerate = []; filesThatShouldGetDeleted = []; filesThatShouldNotGetDeleted = []
         filesThatShouldGetDeleted.extend(common.wildcard1)
@@ -102,7 +102,7 @@ class TestFileDeletionFunctionality:
             common.fileFolderOps.generateBinaryFileWithRandomData(generatedFilename, randomFileSize) 
         #---delete files
         caseSensitive = True
-        fileDeleter.searchAndDestroy(simulatedUserInput, caseSensitive)
+        deleter.searchAndDestroy(simulatedUserInput, caseSensitive)
         #---check which files got deleted and which didn't
         remainingFiles = common.fileFolderOps.getListOfFilesInThisFolder(common.folderToSearch)
         assert common.areTheExactNumberOfFilesPresentInBoth(remainingFiles, filesThatShouldNotGetDeleted)        
@@ -110,8 +110,8 @@ class TestFileDeletionFunctionality:
     def test_wildcardCaseInSensitiveDeletion(self):        
         common = Common()
         common.prepareFolderAfresh()
-        fileDeleter = deleter.FileDeleter(common.folderToSearch, common.fileFolderOps)
-        fileDeleter.switchOffGUI()
+        deleter = fileDeleter.FileDeleter(common.folderToSearch, common.fileFolderOps)
+        deleter.switchOffGUI()
         #---create a list of filenames to test
         filenamesToGenerate = []; filesThatShouldGetDeleted = []; filesThatShouldNotGetDeleted = []
         filesThatShouldGetDeleted.extend(common.wildcard1)
@@ -128,7 +128,7 @@ class TestFileDeletionFunctionality:
             common.fileFolderOps.generateBinaryFileWithRandomData(generatedFilename, randomFileSize) 
         #---delete files
         caseSensitive = False
-        fileDeleter.searchAndDestroy(simulatedUserInput, caseSensitive)
+        deleter.searchAndDestroy(simulatedUserInput, caseSensitive)
         #---check which files got deleted and which didn't
         remainingFiles = common.fileFolderOps.getListOfFilesInThisFolder(common.folderToSearch)
         assert common.areTheExactNumberOfFilesPresentInBoth(remainingFiles, filesThatShouldNotGetDeleted)         

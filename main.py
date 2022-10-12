@@ -10,7 +10,7 @@ sys.dont_write_bytecode = True #Prevents the creation of some annoying cache fil
 import logging
 from logging.handlers import RotatingFileHandler
 from programConstants import constants as const
-from fileAndFolder import fileFolderOperations, fileDuplicateFinder, imageDuplicateFinder, uniqueLineFinder, deleter, undo
+from fileAndFolder import fileDeleter, fileFolderOperations, fileDuplicateFinder, imageDuplicateFinder, uniqueLineFinder, undo
 import PySimpleGUI as gui
 from SimpleGUI import menus
 
@@ -124,7 +124,7 @@ if __name__ == '__main__':
         folderChosen = whichFolder.getUserChoice()
         #TODO: can have a confirmation dialog box for safety         
         #---search and destroy
-        fileDeleter = deleter.FileDeleter(folderChosen, fileOps)
+        fileDeleter = fileDeleter.FileDeleter(folderChosen, fileOps)
         fileDeleter.searchAndDestroy(filesToDelete, caseSensitive)      
         
     #------------------------------------------------------------------------
