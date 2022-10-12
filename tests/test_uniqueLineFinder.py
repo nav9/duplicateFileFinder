@@ -7,8 +7,9 @@ from programConstants import constants
 
 class TestUniqueLineFinding:
     def _generateGibberishTextLine(self):        
-        maxLengthOfSentence = 50 #can be much much much larger https://stackoverflow.com/questions/2257441/random-string-generation-with-upper-case-letters-and-digits       
-        database = string.ascii_uppercase + string.digits + string.ascii_lowercase + string.punctuation + string.whitespace
+        maxLengthOfSentence = 100 #can be much much much larger https://stackoverflow.com/questions/2257441/random-string-generation-with-upper-case-letters-and-digits       
+        #database = string.ascii_uppercase + string.digits + string.ascii_lowercase + string.punctuation + string.whitespace
+        database = ["betty ", "bought ", "some ", "butter ", 'but ', 'the ', "was ", "bitter ", "so ", "better ", "to ", "make ", "sea ", "shells ", "on ", "shore "]
         lineLength = random.randint(0, maxLengthOfSentence)
         return ''.join(random.choices(database, k = lineLength))
         
@@ -36,34 +37,40 @@ class TestUniqueLineFinding:
         fileFolderOps.createDirectoryIfNotExisting(nestedFolder)  
         fileSuffix = ".txt"      
         #---create files containing duplicate sentences
-        lines = set()
-        filenames = []
-        numberOfFilesToGenerate = 20
-        maxLinesToGenerate = 100
+        uniqueLines = set()
+        numberOfFilesToGenerate = 5
+        maxLinesToGenerate = 500
         averageNumberOfLines = maxLinesToGenerate / numberOfFilesToGenerate
         numberOfLinesWritten = 0
-        numberOfDuplicateSentencesInserted = 0        
-        for i in range(numberOfFilesToGenerate): #each file to generate   
+        numberOfDuplicateSentencesInserted = 0
+        for i in range(numberOfFilesToGenerate): #each file to generate 
+            generatedFilename = constants.GlobalConstants.dummyPrefix + "file" + str(i) + fileSuffix
+            print("--- processing file: ", generatedFilename)
             if random.randint(0, 1) == 0:#to sometimes place the file in a subfolder
-                generatedFilename = os.path.join(folderToSearch, constants.GlobalConstants.dummyPrefix + "file" + str(i) + fileSuffix)
+                generatedFilename = os.path.join(folderToSearch, generatedFilename)
             else:
-                generatedFilename = os.path.join(nestedFolder, constants.GlobalConstants.dummyPrefix + "file" + str(i) + fileSuffix)            
-            filenames.append(generatedFilename)
+                generatedFilename = os.path.join(nestedFolder, generatedFilename)            
             numberOfLinesForThisFile = random.randint(0, averageNumberOfLines)
-            maxLinesToGenerate = maxLinesToGenerate - numberOfLinesForThisFile
-            linesToWrite = []
+            linesToWriteInThisFile = []
             for _ in range(numberOfLinesForThisFile):
                 line = self._generateGibberishTextLine() 
-                if line in lines:#line already exists. Duplicate sentences can exist in the same file too
+                linesToWriteInThisFile.append(line) 
+                
+                if line in uniqueLines:#line already exists. Duplicate sentences can exist in the same file too
                     numberOfDuplicateSentencesInserted += 1
+                    print("Incremented duplicate after creating an exact match")
                 else:
-                    if random.randint(0, CHANCES_OF_MATCHING) == 0:
-                        linesToWrite.append(random.choice(tuple(lines))) #choose an existing line and insert it as a duplicate
+                    uniqueLines.add(line)
+                    print("Added", line, "to uniqueLines")
+                    if random.randint(0, CHANCES_OF_MATCHING) == 0 and uniqueLines:#random condition and uniqueLines is not empty
+                        toadd = random.choice(tuple(uniqueLines))
+                        linesToWriteInThisFile.append(toadd) #choose an existing line and insert it as a duplicate
                         numberOfDuplicateSentencesInserted += 1
-                lines.add(line)
-                linesToWrite.append(line)                                 
-            fileFolderOps.writeLinesToFile(generatedFilename, linesToWrite)
-            numberOfLinesWritten += len(linesToWrite)
+                        print("Incremented duplicate. Added: ", toadd)                
+                                  
+            print("writing", str(linesToWriteInThisFile))
+            numberOfLinesWritten += len(linesToWriteInThisFile)
+            fileFolderOps.writeLinesToFile(generatedFilename, linesToWriteInThisFile) #if list is empty, an empty file will get created on disk
         
         #---perform the line duplicate check and verify 
         lineFinder = uniqueLineFinder.UniqueLineFinder(folderToSearch, fileFolderOps)

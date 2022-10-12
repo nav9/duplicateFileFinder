@@ -88,7 +88,7 @@ class FileOperations:
     
     def readBunchOfLinesFromTextFile(self, generatorObject):
         lines = []
-        for _ in range(0, self.LINES_TO_READ_AT_ONCE):
+        for _ in range(self.LINES_TO_READ_AT_ONCE):
             try:
                 line = next(generatorObject)
             except StopIteration:#reached end of file
