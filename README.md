@@ -13,13 +13,13 @@
 `Python 3.9.6` was used. You could use PyEnv or Anaconda/Miniconda to install specific versions of Python. For Python and the pip packages, it isn't strictly necessary to install the specified versions. The versions have been specified to help prevent incompatibility issues that may be present in future versions. So by knowing what versions the working version of `duplicateFileFinder` used, you'll be able to run the program without hassles.     
   
 First install dependencies, using (the version numbers don't have to match exactly):  
-`pip3 install imagehash=4.3.0 PySimpleGUI=4.60.3 Pillow=9.2.0`    
+`pip3 install imagehash==4.3.0 PySimpleGUI==4.60.3 Pillow==9.2.0`    
   
 Then simply run the main file as:  
 `python3 main.py`  
   
 # To run the tests  
-`pip3 install pytest=7.1.2`  
+`pip3 install pytest==7.1.2`  
 Use `pytest` at the commandline to run the test cases. Do this in the root program directory.  
   
 # TODO
