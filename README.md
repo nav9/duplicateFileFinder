@@ -35,4 +35,4 @@ These are mentioned in the code for now.
 * The GUI library used is `PySimpleGUI`.
 * Images are compared with what's called an "image hash". It's different from standard hashing algorithms. The imagehash algorithm documentation explains more about it. More info: https://pypi.org/project/ImageHash/
   
-  
+[![Donate](https://raw.githubusercontent.com/nav9/VCF_contacts_merger/main/gallery/thankYouDonateButton.png)](https://nrecursions.blogspot.com/2020/08/saying-thank-you.html)    
