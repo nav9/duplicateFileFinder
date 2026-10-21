@@ -1,3 +1,4 @@
+.freebuff/
 *.txt
 
 # ignore the dummy files and folders created by the tests
@@ -133,3 +134,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# DedupVault build state and generated build trees
+build_*/
+.build_state.json
