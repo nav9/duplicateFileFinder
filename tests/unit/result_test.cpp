@@ -4,6 +4,7 @@
 #include "dupli/grouping.hpp"
 #include "dupli/fingerprint.hpp"
 #include "dupli/classifier.hpp"
+#include "dupli/container_detector.hpp"
 #include <cassert>
 #include <iostream>
 #include <cstring>
@@ -266,6 +267,30 @@ void test_classifier() {
     std::cout << "Classifier tests passed\n";
 }
 
+void test_containers() {
+    dupli::FakeFileSystem fs;
+    dupli::ContainerDetector detector(fs);
+    
+    fs.add_directory("/repo");
+    fs.add_directory("/repo/.git");
+    fs.add_file("/repo/.git/config", "test");
+    auto git_result = detector.detect("/repo");
+    assert(git_result.ok());
+    assert(git_result.value().size() >= 1);
+    
+    dupli::FakeFileSystem fs2;
+    dupli::ContainerDetector detector2(fs2);
+    fs2.add_directory("/page");
+    fs2.add_file("/page/index.html", "<html></html>");
+    fs2.add_directory("/page/index_files");
+    fs2.add_file("/page/index_files/style.css", "body{}");
+    auto web_result = detector2.detect("/page");
+    assert(web_result.ok());
+    assert(web_result.value().size() >= 1);
+    
+    std::cout << "Container tests passed\n";
+}
+
 int main() {
     test_result();
     test_fake_filesystem();
@@ -273,6 +298,7 @@ int main() {
     test_grouping();
     test_fingerprint();
     test_classifier();
+    test_containers();
     std::cout << "All tests passed\n";
     return 0;
 }
