@@ -5,6 +5,7 @@
 #include "dupli/fingerprint.hpp"
 #include "dupli/classifier.hpp"
 #include "dupli/container_detector.hpp"
+#include "dupli/merge_planner.hpp"
 #include <cassert>
 #include <iostream>
 #include <cstring>
@@ -291,6 +292,32 @@ void test_containers() {
     std::cout << "Container tests passed\n";
 }
 
+void test_merge_planner() {
+    dupli::FakeFileSystem fs;
+    dupli::MergePlanner planner(fs);
+    
+    fs.add_directory("/dest");
+    fs.add_file("/src/unique.txt", "hello");
+    std::vector<std::filesystem::path> sources = {"/src/unique.txt"};
+    auto plan = planner.plan_merge(sources, "/dest");
+    assert(plan.ok());
+    assert(!plan.value().actions.empty());
+    
+    dupli::FakeFileSystem fs2;
+    dupli::MergePlanner planner2(fs2);
+    fs2.add_directory("/dest");
+    fs2.add_directory("/src");
+    fs2.add_file("/dest/file.txt", "old");
+    fs2.add_file("/src/file.txt", "new");
+    std::vector<std::filesystem::path> sources2 = {"/src/file.txt"};
+    auto plan2 = planner2.plan_merge(sources2, "/dest");
+    assert(plan2.ok());
+    assert(!plan2.value().conflicts.empty());
+    assert(!plan2.value().executable);
+    
+    std::cout << "Merge planner tests passed\n";
+}
+
 int main() {
     test_result();
     test_fake_filesystem();
@@ -299,6 +326,7 @@ int main() {
     test_fingerprint();
     test_classifier();
     test_containers();
+    test_merge_planner();
     std::cout << "All tests passed\n";
     return 0;
 }
