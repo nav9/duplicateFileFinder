@@ -4,7 +4,7 @@
 #include <string>
 #include <optional>
 
-namespace dupman {
+namespace dupli {
 
 enum class ErrorCode {
     Ok,
@@ -66,4 +66,4 @@ private:
     std::optional<Error> m_error;
 };
 
-} // namespace dupman
+} // namespace dupli

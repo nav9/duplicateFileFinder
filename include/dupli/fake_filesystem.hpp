@@ -1,12 +1,12 @@
 #pragma once
 
-#include "dupman/filesystem.hpp"
+#include "dupli/filesystem.hpp"
 #include <map>
 #include <set>
 #include <cstring>
 #include <algorithm>
 
-namespace dupman {
+namespace dupli {
 
 class FakeReadableFile : public IReadableFile {
 public:
@@ -277,4 +277,4 @@ private:
     std::set<std::filesystem::path> m_permission_denied;
 };
 
-} // namespace dupman
+} // namespace dupli

@@ -99,7 +99,7 @@ class DuplicateManagerMenu:
         build_dir = self.get_build_dir()
         
         # Find executable
-        exe_name = "dupman_cli"
+        exe_name = "dupli_cli"
         if self.os_name == "Windows":
             exe_paths = [
                 build_dir / "src" / "cli" / self.config / f"{exe_name}.exe",

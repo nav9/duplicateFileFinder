@@ -16,3 +16,6 @@ enable_testing()
 # Add subdirectories
 add_subdirectory(src)
 add_subdirectory(tests)
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+find_package(Blake3 REQUIRED)

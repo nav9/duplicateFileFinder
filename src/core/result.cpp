@@ -1,1 +1,1 @@
-#include "dupman/result.hpp"
+#include "dupli/result.hpp"

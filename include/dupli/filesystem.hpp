@@ -1,12 +1,12 @@
 #pragma once
 
-#include "dupman/result.hpp"
+#include "dupli/result.hpp"
 #include <filesystem>
 #include <memory>
 #include <vector>
 #include <string>
 
-namespace dupman {
+namespace dupli {
 
 class IReadableFile {
 public:
@@ -39,4 +39,4 @@ public:
     virtual Result<void> rename(const std::filesystem::path& from, const std::filesystem::path& to) = 0;
 };
 
-} // namespace dupman
+} // namespace dupli
