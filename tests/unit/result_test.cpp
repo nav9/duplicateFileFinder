@@ -6,6 +6,9 @@
 #include "dupli/classifier.hpp"
 #include "dupli/container_detector.hpp"
 #include "dupli/merge_planner.hpp"
+#include "dupli/action_planner.hpp"
+#include "dupli/executor.hpp"
+#include "dupli/scanner.hpp"
 #include <cassert>
 #include <iostream>
 #include <cstring>
@@ -318,6 +321,62 @@ void test_merge_planner() {
     std::cout << "Merge planner tests passed\n";
 }
 
+void test_action_planner() {
+    dupli::ActionPlanner planner;
+    
+    std::vector<std::filesystem::path> sources = {"/test/file.txt"};
+    auto plan1 = planner.create_plan(dupli::ActionMode::PreviewOnly, sources);
+    assert(plan1.ok());
+    assert(!plan1.value().executable);
+    
+    auto plan2 = planner.create_plan(dupli::ActionMode::InPlaceMerge, sources);
+    assert(plan2.ok());
+    assert(plan2.value().executable);
+    assert(!planner.validate_approvals(plan2.value(), {}));
+    std::vector<std::string> approvals = {"action_0"};
+    assert(planner.validate_approvals(plan2.value(), approvals));
+    
+    std::cout << "Action planner tests passed\n";
+}
+
+void test_executor() {
+    dupli::FakeFileSystem fs;
+    dupli::Blake3Hasher hasher;
+    dupli::SimpleJournal journal;
+    
+    fs.add_directory("/src");
+    fs.add_directory("/dest");
+    fs.add_file("/src/file.txt", "hello");
+    
+    dupli::ActionPlanner planner;
+    std::vector<std::filesystem::path> sources = {"/src/file.txt"};
+    auto plan = planner.create_plan(dupli::ActionMode::CreateUniqueCollection, sources);
+    assert(plan.ok());
+    
+    dupli::Executor executor(fs, hasher, journal);
+    std::vector<std::string> approvals;
+    auto report = executor.execute(plan.value(), approvals);
+    assert(report.ok());
+    
+    std::cout << "Executor tests passed\n";
+}
+
+void test_scanner() {
+    dupli::FakeFileSystem fs;
+    fs.add_directory("/root");
+    fs.add_file("/root/a.txt", "hello");
+    fs.add_directory("/root/sub");
+    fs.add_file("/root/sub/b.txt", "world");
+    
+    dupli::Scanner scanner(fs);
+    std::vector<std::filesystem::path> roots = {"/root"};
+    auto entries = scanner.scan(roots);
+    assert(entries.ok());
+    assert(entries.value().size() >= 3);
+    
+    std::cout << "Scanner tests passed\n";
+}
+
 int main() {
     test_result();
     test_fake_filesystem();
@@ -327,6 +386,9 @@ int main() {
     test_classifier();
     test_containers();
     test_merge_planner();
+    test_action_planner();
+    test_executor();
+    test_scanner();
     std::cout << "All tests passed\n";
     return 0;
 }
