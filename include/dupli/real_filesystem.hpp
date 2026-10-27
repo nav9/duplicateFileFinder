@@ -3,6 +3,7 @@
 #include "dupli/filesystem.hpp"
 #include <filesystem>
 
+#include <fstream>
 namespace dupli {
 
 class RealFileSystem : public IFileSystem {

@@ -43,3 +43,30 @@ endif()
         settings.cpp
         logger.cpp
     )
+    target_sources(dupli_gui PRIVATE
+        taskmanager.cpp
+        platform_paths.cpp
+        taskhistory_panel.cpp
+        settings.cpp
+        logger.cpp
+        duplicate_files_tab.cpp
+    )
+    target_sources(dupli_gui PRIVATE
+        taskmanager.cpp
+        platform_paths.cpp
+        taskhistory_panel.cpp
+        settings.cpp
+        logger.cpp
+        duplicate_files_tab.cpp
+        file_dialog_helper.cpp
+    )
+    target_sources(dupli_gui PRIVATE
+        taskmanager.cpp
+        platform_paths.cpp
+        taskhistory_panel.cpp
+        settings.cpp
+        logger.cpp
+        duplicate_files_tab.cpp
+        file_dialog_helper.cpp
+        scan_thread.cpp
+    )
