@@ -346,3 +346,9 @@ When implementing Milestone 8, the GUI already has the task history UI component
 - Implementing undo functionality that revalidates file state
 - Implementing metadata deletion separate from undo
 - Ensuring task history recovery on application launch
+
+## Milestone 2 Updates
+- Settings system implemented with versioned JSON format in platform config directory
+- Logger with rotating log support (disabled by default, doesn't affect journals)
+- Platform paths for config/data/cache directories
+- Task history table auto-adjusts width to fit window

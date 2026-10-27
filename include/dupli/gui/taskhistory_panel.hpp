@@ -13,11 +13,13 @@ public:
     
 private:
     void CreateControls();
+    void AdjustColumnWidths();
     void OnRefresh(wxCommandEvent& event);
     void OnResume(wxCommandEvent& event);
     void OnUndo(wxCommandEvent& event);
     void OnDeleteMetadata(wxCommandEvent& event);
     void OnSelectionChanged(wxListEvent& event);
+    void OnSize(wxSizeEvent& event);
     
     wxListCtrl* m_historyList;
     wxButton* m_resumeBtn;
