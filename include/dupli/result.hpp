@@ -67,3 +67,6 @@ private:
 };
 
 } // namespace dupli
+
+// Result<T, Error> pattern: provides consistent error handling without exceptions
+// for normal control flow. Used throughout the codebase to make failures explicit.

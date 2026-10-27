@@ -98,37 +98,65 @@ class DuplicateManagerMenu:
         print(f"\nRunning in {self.config} configuration...")
         build_dir = self.get_build_dir()
         
-        # Find executable
-        exe_name = "dupli_cli"
+        # Try GUI first, then CLI
+        gui_exe_name = "dupli_gui"
+        cli_exe_name = "dupli_cli"
+        
         if self.os_name == "Windows":
-            exe_paths = [
-                build_dir / "src" / "cli" / self.config / f"{exe_name}.exe",
-                build_dir / "src" / "cli" / f"{exe_name}.exe",
+            gui_paths = [
+                build_dir / "src" / "gui" / self.config / f"{gui_exe_name}.exe",
+                build_dir / "src" / "gui" / f"{gui_exe_name}.exe",
+            ]
+            cli_paths = [
+                build_dir / "src" / "cli" / self.config / f"{cli_exe_name}.exe",
+                build_dir / "src" / "cli" / f"{cli_exe_name}.exe",
             ]
         else:
-            exe_paths = [
-                build_dir / "src" / "cli" / exe_name,
+            gui_paths = [
+                build_dir / "src" / "gui" / gui_exe_name,
+            ]
+            cli_paths = [
+                build_dir / "src" / "cli" / cli_exe_name,
             ]
         
         exe_path = None
-        for p in exe_paths:
+        exe_type = None
+        
+        # Prefer GUI
+        for p in gui_paths:
             if p.exists():
                 exe_path = p
+                exe_type = "GUI"
                 break
+        
+        if exe_path is None:
+            for p in cli_paths:
+                if p.exists():
+                    exe_path = p
+                    exe_type = "CLI"
+                    break
         
         if exe_path is None:
             print("Executable not found. Building first...")
             self.build_project()
             # Try again
-            for p in exe_paths:
+            for p in gui_paths:
                 if p.exists():
                     exe_path = p
+                    exe_type = "GUI"
                     break
+            if exe_path is None:
+                for p in cli_paths:
+                    if p.exists():
+                        exe_path = p
+                        exe_type = "CLI"
+                        break
         
         if exe_path is None:
             print("Error: Could not find executable")
             return
         
+        print(f"Running {exe_type}: {exe_path}")
         ret = self.run_command([str(exe_path)])
         print(f"Exit code: {ret}")
     
@@ -155,15 +183,101 @@ class DuplicateManagerMenu:
     
     def install_dependencies(self):
         print(f"\nChecking dependencies on {self.os_name}...")
-        tools = ["cmake", "g++", "clang++"]
+        tools = ["cmake", "g++", "clang++", "make"]
         for tool in tools:
             ret = self.run_command([tool, "--version"])
             if ret == 0:
                 print(f"  {tool}: OK")
             else:
                 print(f"  {tool}: NOT FOUND")
-        print("\nNote: Use system package manager if tools are missing.")
-        print("BLAKE3 will be fetched by CMake if needed.")
+        
+        print("\nChecking wxWidgets...")
+        if self.os_name == "Linux":
+            ret = self.run_command(["pkg-config", "--exists", "wxgtk3"])
+            if ret == 0:
+                print("  wxWidgets: OK")
+            else:
+                print("  wxWidgets: NOT FOUND")
+        elif self.os_name == "Darwin":
+            ret = self.run_command(["brew", "list", "wxwidgets"])
+            if ret == 0:
+                print("  wxWidgets: OK")
+            else:
+                print("  wxWidgets: NOT FOUND")
+        elif self.os_name == "Windows":
+            print("  wxWidgets: Check manually")
+        
+        print("\n--- Install Commands ---")
+        if self.os_name == "Linux":
+            print("Ubuntu/Debian:")
+            print("  sudo apt-get install build-essential cmake libwxgtk3.0-gtk3-dev")
+            print("\nFedora:")
+            print("  sudo dnf install gcc-c++ cmake wxGTK3-devel")
+            print("\nArch:")
+            print("  sudo pacman -S base-devel cmake wxwidgets-gtk3")
+        elif self.os_name == "Darwin":
+            print("macOS (Homebrew):")
+            print("  brew install cmake wxwidgets")
+        elif self.os_name == "Windows":
+            print("Windows:")
+            print("  Use vcpkg: vcpkg install wxwidgets")
+            print("  Or install from https://www.wxwidgets.org/")
+        else:
+            print("Unknown OS - check wxWidgets installation guide")
+        
+        print("\nNote: BLAKE3 will be fetched by CMake if needed.")
+        print("\nTo install, run the appropriate command above with sudo/admin privileges.")
+        resp = input("\nDo you want to attempt automatic installation? (y/N): ").strip().lower()
+        if resp == 'y':
+            self.auto_install_deps()
+    
+    def auto_install_deps(self):
+        print(f"\nAttempting automatic installation on {self.os_name}...")
+        if self.os_name == "Linux":
+            # Try apt
+            ret = self.run_command(["which", "apt-get"])
+            if ret == 0:
+                print("Using apt-get...")
+                cmd = ["sudo", "apt-get", "install", "-y", "build-essential", "cmake", "libwxgtk3.0-gtk3-dev"]
+                print("Running:", " ".join(cmd))
+                r = self.run_command(cmd)
+                if r == 0:
+                    print("Installation completed")
+                else:
+                    print(f"Installation failed with code {r}")
+                return
+            ret = self.run_command(["which", "dnf"])
+            if ret == 0:
+                cmd = ["sudo", "dnf", "install", "-y", "gcc-c++", "cmake", "wxGTK3-devel"]
+                print("Running:", " ".join(cmd))
+                r = self.run_command(cmd)
+                if r == 0:
+                    print("Installation completed")
+                else:
+                    print(f"Installation failed with code {r}")
+                return
+            ret = self.run_command(["which", "pacman"])
+            if ret == 0:
+                cmd = ["sudo", "pacman", "-S", "--noconfirm", "base-devel", "cmake", "wxwidgets-gtk3"]
+                print("Running:", " ".join(cmd))
+                r = self.run_command(cmd)
+                if r == 0:
+                    print("Installation completed")
+                else:
+                    print(f"Installation failed with code {r}")
+                return
+        elif self.os_name == "Darwin":
+            ret = self.run_command(["which", "brew"])
+            if ret == 0:
+                cmd = ["brew", "install", "cmake", "wxwidgets"]
+                print("Running:", " ".join(cmd))
+                r = self.run_command(cmd)
+                if r == 0:
+                    print("Installation completed")
+                else:
+                    print(f"Installation failed with code {r}")
+                return
+        print("Automatic installation not supported for this setup.")
     
     def create_package(self):
         print(f"\nCreating package in {self.config} configuration...")

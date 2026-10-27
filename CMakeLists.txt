@@ -19,3 +19,18 @@ add_subdirectory(tests)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 find_package(Blake3 REQUIRED)
+
+# GUI target (optional, requires wxWidgets)
+find_package(wxWidgets QUIET COMPONENTS core base)
+if(wxWidgets_FOUND)
+    include(${wxWidgets_USE_FILE})
+    add_subdirectory(src/gui)
+    message(STATUS "wxWidgets found, GUI will be built")
+else()
+    message(STATUS "wxWidgets not found, GUI will not be built")
+endif()
+
+# Add GUI target even if wxWidgets not found (will fail to build but files exist)
+if(NOT wxWidgets_FOUND)
+    message(WARNING "wxWidgets not found - GUI target will not be built. Install libwxgtk3.0-gtk3-dev to build GUI.")
+endif()

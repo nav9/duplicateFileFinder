@@ -95,7 +95,7 @@ duplicate-manager/
   CMakeLists.txt
   CMakePresets.json                 # if useful and portable
   cmake/
-  include/dupman/
+  include/dupli/
     types.hpp
     result.hpp
     filesystem.hpp
@@ -842,7 +842,7 @@ manually copying guessed output paths.
 
 ## 12. Packaging and runtime considerations
 
--   Define a predictable CLI target name, e.g. `dupman_cli`.
+-   Define a predictable CLI target name, e.g. `dupli_cli`.
 -   Use CMake install rules for the CLI and any required runtime assets.
 -   Do not bundle or install the future GUI toolkit in this phase.
 -   Packaging must include the BLAKE3 dependency correctly according to

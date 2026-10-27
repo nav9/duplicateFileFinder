@@ -40,3 +40,6 @@ public:
 };
 
 } // namespace dupli
+
+// IFileSystem interface: abstracts all file operations for dependency injection
+// Allows unit tests to use FakeFileSystem instead of touching real filesystem
