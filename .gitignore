@@ -1,11 +1,16 @@
+.freebuff/
 build/
 install/
+packages/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 Makefile
 *.cmake
 !CMakeLists.txt
+__pycache__/
+*.pyc
+*.jsonl
 .DS_Store
 *.swp
 *.swo

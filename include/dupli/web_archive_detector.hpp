@@ -3,6 +3,7 @@
 #include "dupli/filesystem.hpp"
 #include "dupli/result.hpp"
 #include <string>
+#include <vector>
 
 namespace dupli {
 

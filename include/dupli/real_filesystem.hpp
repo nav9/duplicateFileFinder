@@ -4,7 +4,54 @@
 #include <filesystem>
 
 #include <fstream>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/stat.h>
+#endif
+
 namespace dupli {
+
+namespace detail {
+
+/// Volume/device comparison. This is only ever used as a hint to prefer rename
+/// over copy: a false negative makes us copy (safe, source retained) and a
+/// false positive makes us try rename, which fails safely with a cross-device
+/// error that the executor handles by falling back to copy+verify.
+inline Result<bool> paths_share_device(const std::filesystem::path& left,
+                                       const std::filesystem::path& right) {
+#ifdef _WIN32
+    auto volume_serial = [](const std::filesystem::path& p, DWORD& serial) -> bool {
+        HANDLE handle = ::CreateFileW(p.c_str(), 0,
+                                      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                      nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+        if (handle == INVALID_HANDLE_VALUE) return false;
+        BY_HANDLE_FILE_INFORMATION info{};
+        const bool ok = ::GetFileInformationByHandle(handle, &info) != 0;
+        ::CloseHandle(handle);
+        if (ok) serial = info.dwVolumeSerialNumber;
+        return ok;
+    };
+    DWORD left_serial = 0;
+    DWORD right_serial = 0;
+    if (!volume_serial(left, left_serial) || !volume_serial(right, right_serial)) {
+        return false; // Unknown: assume different, which forces the safe copy path.
+    }
+    return left_serial == right_serial;
+#else
+    struct stat left_stat {};
+    struct stat right_stat {};
+    // stat the paths themselves so a mount point is detected at its own entry
+    // (stat'ing the parent would hide the boundary until the mount is entered).
+    if (::stat(left.c_str(), &left_stat) != 0 || ::stat(right.c_str(), &right_stat) != 0) {
+        return Error{ErrorCode::IoError, "Cannot stat path to compare devices", "", "same_device"};
+    }
+    return left_stat.st_dev == right_stat.st_dev;
+#endif
+}
+
+} // namespace detail
 
 class RealFileSystem : public IFileSystem {
 public:
@@ -32,6 +79,60 @@ public:
         } catch (const std::filesystem::filesystem_error& e) {
             return Error{ErrorCode::IoError, e.what(), path.string(), "is_regular_file"};
         }
+    }
+
+    /// Reports the link itself (never its target). Used by the scanner so links
+    /// are reported and skipped, not traversed.
+    Result<bool> is_symlink(const std::filesystem::path& path) override {
+        std::error_code ec;
+        const auto status = std::filesystem::symlink_status(path, ec);
+        if (ec) {
+            if (ec == std::errc::no_such_file_or_directory) {
+                return Error{ErrorCode::NotFound, ec.message(), path.string(), "is_symlink"};
+            }
+            if (ec == std::errc::permission_denied) {
+                return Error{ErrorCode::PermissionDenied, ec.message(), path.string(), "is_symlink"};
+            }
+            return Error{ErrorCode::IoError, ec.message(), path.string(), "is_symlink"};
+        }
+        return std::filesystem::is_symlink(status);
+    }
+
+    /// Hidden means dot-prefixed on POSIX. On Windows the hidden attribute is
+    /// authoritative, so both are checked; this is why hidden detection lives in
+    /// the platform adapter rather than in the scanner.
+    Result<bool> is_hidden(const std::filesystem::path& path) override {
+        const std::string name = path.filename().string();
+        if (!name.empty() && name.front() == '.') return true;
+#ifdef _WIN32
+        const DWORD attributes = ::GetFileAttributesW(path.c_str());
+        if (attributes == INVALID_FILE_ATTRIBUTES) {
+            return Error{ErrorCode::IoError, "Cannot read file attributes", path.string(), "is_hidden"};
+        }
+        return (attributes & FILE_ATTRIBUTE_HIDDEN) != 0;
+#else
+        return false;
+#endif
+    }
+
+    Result<uintmax_t> file_size(const std::filesystem::path& path) override {
+        std::error_code ec;
+        const auto size = std::filesystem::file_size(path, ec);
+        if (ec) {
+            if (ec == std::errc::no_such_file_or_directory) {
+                return Error{ErrorCode::NotFound, ec.message(), path.string(), "file_size"};
+            }
+            if (ec == std::errc::permission_denied) {
+                return Error{ErrorCode::PermissionDenied, ec.message(), path.string(), "file_size"};
+            }
+            return Error{ErrorCode::IoError, ec.message(), path.string(), "file_size"};
+        }
+        return size;
+    }
+
+    Result<bool> same_device(const std::filesystem::path& left,
+                             const std::filesystem::path& right) override {
+        return detail::paths_share_device(left, right);
     }
     
     Result<std::vector<std::filesystem::path>> list_directory(const std::filesystem::path& path) override {
@@ -131,11 +232,70 @@ public:
         }
     }
     
+    /// Preserves POSIX permissions and modification time after a copy. Extended
+    /// attributes, ACLs, resource forks and Windows alternate data streams are
+    /// deliberately out of scope; callers must treat a failure as a warning and
+    /// never claim full metadata preservation.
+    Result<void> copy_metadata(const std::filesystem::path& from,
+                               const std::filesystem::path& to) override {
+        std::error_code error;
+        const auto status = std::filesystem::status(from, error);
+        if (error) {
+            return Error{ErrorCode::IoError, error.message(), from.string(), "copy_metadata"};
+        }
+        std::filesystem::permissions(to, status.permissions(),
+                                     std::filesystem::perm_options::replace, error);
+        if (error) {
+            return Error{ErrorCode::IoError, error.message(), to.string(), "copy_metadata"};
+        }
+        const auto modified = std::filesystem::last_write_time(from, error);
+        if (!error) {
+            std::filesystem::last_write_time(to, modified, error);
+            if (error) {
+                return Error{ErrorCode::IoError, error.message(), to.string(), "copy_metadata"};
+            }
+        }
+        return Result<void>();
+    }
+
+    /// Rename/move that never overwrites. std::filesystem::rename() replaces an
+    /// existing destination on POSIX, so regular files are published with a hard
+    /// link (atomic create-if-absent on the same filesystem) followed by removing
+    /// the original path. If the link cannot be created (directories, exotic
+    /// filesystems) the code falls back to rename after an existence check.
     Result<void> rename(const std::filesystem::path& from, const std::filesystem::path& to) override {
         try {
+            std::error_code exists_error;
+            if (std::filesystem::exists(to, exists_error) && !exists_error) {
+                return Error{ErrorCode::Conflict, "Destination already exists and will not be overwritten",
+                             to.string(), "rename"};
+            }
             if (std::filesystem::is_symlink(from)) {
                 return Error{ErrorCode::Unsupported, "Symlinks are not moved", from.string(), "rename"};
             }
+#ifndef _WIN32
+            if (std::filesystem::is_regular_file(from)) {
+                std::error_code link_error;
+                std::filesystem::create_hard_link(from, to, link_error);
+                if (!link_error) {
+                    std::error_code remove_error;
+                    std::filesystem::remove(from, remove_error);
+                    if (remove_error) {
+                        // The destination is published; report the partial state
+                        // so the journal/recovery can reconcile it.
+                        return Error{ErrorCode::IoError,
+                                     "Moved but could not remove the original: " +
+                                         remove_error.message(),
+                                     from.string(), "rename"};
+                    }
+                    return Result<void>();
+                }
+                if (link_error != std::errc::operation_not_supported &&
+                    link_error != std::errc::function_not_supported) {
+                    return Error{ErrorCode::IoError, link_error.message(), from.string(), "rename"};
+                }
+            }
+#endif
             std::filesystem::rename(from, to);
             return Result<void>();
         } catch (const std::filesystem::filesystem_error& e) {

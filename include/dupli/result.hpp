@@ -26,6 +26,23 @@ struct Error {
     std::string operation;
 };
 
+/// Stable, human-readable error code names for reports and CLI output.
+inline const char* to_string(ErrorCode code) {
+    switch (code) {
+    case ErrorCode::Ok: return "ok";
+    case ErrorCode::NotFound: return "not-found";
+    case ErrorCode::PermissionDenied: return "permission-denied";
+    case ErrorCode::IoError: return "io-error";
+    case ErrorCode::InvalidArgument: return "invalid-argument";
+    case ErrorCode::Unsupported: return "unsupported";
+    case ErrorCode::Stale: return "stale";
+    case ErrorCode::Conflict: return "conflict";
+    case ErrorCode::Cancelled: return "cancelled";
+    case ErrorCode::Unknown: return "unknown";
+    }
+    return "unknown";
+}
+
 template<typename T>
 class Result {
 public:
